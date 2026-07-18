@@ -22,6 +22,7 @@ const STATUS: Document["status"][] = [
 const statusStyle: Record<Document["status"], string> = {
   "Aguardando Análise": "bg-amber-50 text-amber-700",
   "Aguardando Aprovação": "bg-blue-50 text-blue-700",
+  Compartilhado: "bg-sky-50 text-sky-700",
   Lançado: "bg-emerald-50 text-emerald-700",
   Cancelado: "bg-zinc-100 text-zinc-500",
 };
@@ -57,7 +58,11 @@ const emptyLaunch = {
 export default function DocumentsReceivedView() {
   const {
     activeCompany,
+    currentUser,
+    users,
     documents,
+    accountsPayable,
+    accountsReceivable,
     bankAccounts,
     masterData,
     updateDocument,
@@ -75,8 +80,15 @@ export default function DocumentsReceivedView() {
   const [draft, setDraft] = useState<Partial<Document>>({});
   const [newLaunchOpen, setNewLaunchOpen] = useState(false);
   const [newLaunch, setNewLaunch] = useState(emptyLaunch);
+  const [approvalRecipientId, setApprovalRecipientId] = useState("");
   const companyDocuments = useMemo(
-    () => documents.filter((item) => item.companyId === activeCompany?.id),
+    () =>
+      documents.filter(
+        (item) =>
+          item.companyId === activeCompany?.id &&
+          item.purpose !== "VIEW_ONLY" &&
+          item.status !== "Compartilhado",
+      ),
     [documents, activeCompany],
   );
   const filtered = companyDocuments.filter((item) => {
@@ -91,11 +103,57 @@ export default function DocumentsReceivedView() {
   });
   const selected =
     companyDocuments.find((item) => item.id === selectedId) || filtered[0];
+  const isManualLaunch = Boolean(
+    selected &&
+      (selected.origin === "Manual" ||
+        selected.mimeType === "application/x-manual-entry"),
+  );
+  const linkedPayable = accountsPayable.find(
+    (item) => item.id === selected?.relatedEntityId,
+  );
+  const linkedReceivable = accountsReceivable.find(
+    (item) => item.id === selected?.relatedEntityId,
+  );
+  const manualFinancialLocked = Boolean(
+    isManualLaunch &&
+      selected?.status === "Lançado" &&
+      (selected.entryType === "Conta a Receber"
+        ? !linkedReceivable ||
+          linkedReceivable.receivedAmount > 0 ||
+          ["Recebido", "Recebida", "Cancelado", "Cancelada"].includes(
+            linkedReceivable.status,
+          )
+        : selected.entryType === "Transferência"
+          ? false
+          : !linkedPayable ||
+            ["Paga", "Cancelada"].includes(linkedPayable.status)),
+  );
+  const canEditSelected = Boolean(
+    selected &&
+      (selected.status === "Aguardando Análise" ||
+        (isManualLaunch &&
+          selected.status === "Lançado" &&
+          !manualFinancialLocked)),
+  );
 
   useEffect(() => {
     if (!selectedId && filtered[0]) setSelectedId(filtered[0].id);
   }, [selectedId, filtered]);
+  useEffect(() => setApprovalRecipientId(""), [activeCompany?.id]);
+  if (!["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role)) {
+    return (
+      <div className="bg-white border border-zinc-200 rounded-xl p-8 text-center text-xs text-zinc-500">
+        A fila de lançamentos é exclusiva da equipe BPO.
+      </div>
+    );
+  }
   if (!activeCompany) return null;
+  const approvalRecipients = users.filter(
+    (user) =>
+      user.status === "ACTIVE" &&
+      user.role === "CLIENT" &&
+      user.companies?.includes(activeCompany.id),
+  );
   const options = (type: import("../types").MasterDataType) =>
     masterData.filter(
       (item) =>
@@ -115,15 +173,45 @@ export default function DocumentsReceivedView() {
   const set = <K extends keyof Document>(key: K, next: Document[K]) =>
     setDraft((current) => ({ ...current, [key]: next }));
   const save = () => {
-    if (selected && Object.keys(draft).length)
-      updateDocument(selected.id, draft);
+    if (selected && Object.keys(draft).length) {
+      const updated = updateDocument(selected.id, draft);
+      if (!updated) {
+        alert(
+          "Este lançamento não pode mais ser editado porque o registro financeiro vinculado já foi liquidado, recebido ou cancelado.",
+        );
+        return;
+      }
+    }
+    setDraft({});
+  };
+  const cancelManualLaunch = () => {
+    if (!selected) return;
+    if (
+      !window.confirm(
+        "Cancelar este lançamento manual? O registro financeiro vinculado também será cancelado.",
+      )
+    )
+      return;
+    const cancelled = cancelDocument(selected.id);
+    if (!cancelled) {
+      alert(
+        "Não foi possível cancelar. Verifique se a conta já foi paga ou recebeu algum valor.",
+      );
+      return;
+    }
     setDraft({});
   };
   const act = (action: "launch" | "approval" | "cancel") => {
     if (!selected) return;
     if (Object.keys(draft).length) updateDocument(selected.id, draft);
     if (action === "launch") launchDocument(selected.id, draft);
-    if (action === "approval") submitDocumentForApproval(selected.id, draft);
+    if (action === "approval") {
+      if (!approvalRecipientId) {
+        alert("Selecione o cliente que aprovará o lançamento.");
+        return;
+      }
+      submitDocumentForApproval(selected.id, draft, approvalRecipientId);
+    }
     if (action === "cancel") cancelDocument(selected.id);
     setDraft({});
   };
@@ -176,9 +264,18 @@ export default function DocumentsReceivedView() {
   };
   const approveBatch = (items: Document[]) => {
     if (!items.length) return;
-    const message = `Você enviará ${items.length} ${items.length === 1 ? "lançamento" : "lançamentos"} para aprovação do cliente. Deseja continuar?`;
+    const recipient = approvalRecipients.find(
+      (user) => user.id === approvalRecipientId,
+    );
+    if (!recipient) {
+      alert("Selecione o cliente que aprovará os lançamentos.");
+      return;
+    }
+    const message = `Você enviará ${items.length} ${items.length === 1 ? "lançamento" : "lançamentos"} para aprovação de ${recipient.name}. Deseja continuar?`;
     if (!window.confirm(message)) return;
-    items.forEach((item) => submitDocumentForApproval(item.id));
+    items.forEach((item) =>
+      submitDocumentForApproval(item.id, {}, recipient.id),
+    );
     setSelectedIds(new Set());
   };
 
@@ -193,9 +290,26 @@ export default function DocumentsReceivedView() {
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          <label className="text-[10px] font-bold text-zinc-500">
+            Cliente aprovador
+            <select
+              value={approvalRecipientId}
+              onChange={(event) =>
+                setApprovalRecipientId(event.target.value)
+              }
+              className="mt-1 block min-w-56 border border-zinc-200 rounded-lg px-3 py-2 text-xs bg-white"
+            >
+              <option value="">Selecione o cliente</option>
+              {approvalRecipients.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} · Cliente
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             onClick={() => setNewLaunchOpen(true)}
-            className="bg-[#0B2C52] text-white rounded-lg px-4 py-2.5 text-xs font-bold flex items-center gap-2 cursor-pointer"
+            className="self-end bg-[#0B2C52] text-white rounded-lg px-4 py-2.5 text-xs font-bold flex items-center gap-2 cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Novo lançamento
           </button>
@@ -543,7 +657,13 @@ export default function DocumentsReceivedView() {
               <div className="flex gap-2">
                 <button
                   onClick={() => approveBatch(selectedEligible)}
-                  className="bg-blue-600 text-white rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-1.5"
+                  disabled={!approvalRecipientId}
+                  title={
+                    approvalRecipientId
+                      ? "Enviar selecionados para aprovação"
+                      : "Selecione um destinatário no topo da página"
+                  }
+                  className="bg-blue-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-1.5"
                 >
                   <Send className="h-3.5 w-3.5" /> Enviar para aprovação (
                   {selectedEligible.length})
@@ -767,23 +887,33 @@ export default function DocumentsReceivedView() {
                 </button>
               </div>
               <div className="p-4 space-y-3 max-h-[58vh] overflow-y-auto">
-                {selected.status === "Aguardando Análise" ? (
+                {canEditSelected ? (
                   <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] text-blue-700">
-                    <strong>Campos editáveis</strong> — confira e ajuste as
-                    informações destacadas abaixo.
+                    <strong>Campos editáveis</strong> —{" "}
+                    {isManualLaunch
+                      ? "as alterações serão sincronizadas com o registro financeiro vinculado."
+                      : "confira e ajuste as informações destacadas abaixo."}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[10px] text-zinc-500">
-                    <strong>Somente leitura</strong> — este lançamento não pode
-                    mais ser alterado neste status.
+                    <strong>Somente leitura</strong> —{" "}
+                    {manualFinancialLocked
+                      ? "a conta vinculada já foi liquidada, recebeu valores ou foi cancelada."
+                      : "este lançamento não pode mais ser alterado neste status."}
                   </div>
                 )}
                 <fieldset
-                  disabled={selected.status !== "Aguardando Análise"}
+                  disabled={!canEditSelected}
                   className="space-y-3 disabled:cursor-not-allowed"
                 >
                   <Field label="Tipo de lançamento" required>
                     <select
+                      disabled={isManualLaunch && selected.status === "Lançado"}
+                      title={
+                        isManualLaunch && selected.status === "Lançado"
+                          ? "O tipo não pode ser alterado após a criação do registro financeiro"
+                          : undefined
+                      }
                       value={String(value("entryType") || "Conta a Pagar")}
                       onChange={(e) =>
                         set(
@@ -982,7 +1112,7 @@ export default function DocumentsReceivedView() {
                     />
                   </Field>
                 </fieldset>
-                {Object.keys(draft).length > 0 && (
+                {canEditSelected && Object.keys(draft).length > 0 && (
                   <button
                     onClick={save}
                     className="text-[10px] font-bold text-blue-700"
@@ -994,25 +1124,59 @@ export default function DocumentsReceivedView() {
               <div className="p-4 border-t">
                 <p className="text-xs font-bold mb-3">Ações do BPO</p>
                 {selected.status === "Aguardando Análise" ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      onClick={() => act("launch")}
-                      className="bg-emerald-600 text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
-                    >
-                      <Check className="h-3.5 w-3.5" /> Lançar
-                    </button>
-                    <button
-                      onClick={() => act("approval")}
-                      className="bg-blue-600 text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
-                    >
-                      <Send className="h-3.5 w-3.5" /> Aprovação
-                    </button>
-                    <button
-                      onClick={() => act("cancel")}
-                      className="bg-red-600 text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
-                    >
-                      <X className="h-3.5 w-3.5" /> Cancelar
-                    </button>
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-zinc-500">
+                      {approvalRecipientId
+                        ? `A aprovação será enviada para ${approvalRecipients.find((user) => user.id === approvalRecipientId)?.name}.`
+                        : "Selecione o cliente aprovador no topo."}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => act("launch")}
+                        className="bg-emerald-600 text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
+                      >
+                        <Check className="h-3.5 w-3.5" /> Lançar
+                      </button>
+                      <button
+                        onClick={() => act("approval")}
+                        disabled={!approvalRecipientId}
+                        className="bg-blue-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
+                      >
+                        <Send className="h-3.5 w-3.5" /> Aprovação
+                      </button>
+                      <button
+                        onClick={() => act("cancel")}
+                        className="bg-red-600 text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" /> Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : isManualLaunch && selected.status === "Lançado" ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-zinc-500">
+                      Edite os campos acima ou cancele o lançamento e o registro
+                      financeiro vinculado.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={save}
+                        disabled={
+                          manualFinancialLocked ||
+                          Object.keys(draft).length === 0
+                        }
+                        className="bg-blue-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
+                      >
+                        <Check className="h-3.5 w-3.5" /> Salvar alterações
+                      </button>
+                      <button
+                        onClick={cancelManualLaunch}
+                        disabled={manualFinancialLocked}
+                        className="bg-red-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg py-2 text-[10px] font-bold flex justify-center items-center gap-1 cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" /> Cancelar lançamento
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-[10px] text-zinc-400">

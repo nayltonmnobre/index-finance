@@ -83,6 +83,7 @@ function BPOWorkspaceShell() {
     companies,
     switchCompany,
     hasPermission,
+    isApprovalVisibleToCurrentUser,
     approvals,
     supportTickets,
     notifications,
@@ -124,11 +125,19 @@ function BPOWorkspaceShell() {
 
   // Pending approvals count badge
   const pendingApprovalsCount = approvals.filter(
-    (a) => a.status === "Pendente" && a.companyId === activeCompany.id,
+    (a) =>
+      a.status === "Pendente" &&
+      a.companyId === activeCompany.id &&
+      isApprovalVisibleToCurrentUser(a),
   ).length;
 
   // Unread notifications count
-  const unreadNotifications = notifications.filter((n) => !n.isRead);
+  const visibleNotifications = notifications.filter(
+    (notification) =>
+      (!notification.userId || notification.userId === currentUser.id) &&
+      (!notification.companyId || notification.companyId === activeCompany.id),
+  );
+  const unreadNotifications = visibleNotifications.filter((n) => !n.isRead);
 
   // Navigation schema configured with permissions checks
   const navigationItems = [
@@ -189,7 +198,7 @@ function BPOWorkspaceShell() {
       view: "documents" as const,
       permission: null,
     },
-    ...(currentUser.role !== "CLIENT"
+    ...(["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role)
       ? [
           {
             id: "documents-received",
@@ -542,7 +551,8 @@ function BPOWorkspaceShell() {
               const Icon = item.icon;
               const section =
                 item.id === "documents-received" ||
-                (currentUser.role === "CLIENT" && item.id === "approvals")
+                (["CLIENT", "ACCOUNTANT"].includes(currentUser.role) &&
+                  item.id === "approvals")
                   ? "Operação"
                   : item.id === "cash-flow"
                     ? "Financeiro"
@@ -804,7 +814,7 @@ function BPOWorkspaceShell() {
             </div>
 
             <div className="divide-y divide-zinc-100 overflow-y-auto flex-grow max-h-[80vh]">
-              {notifications.map((notif) => (
+              {visibleNotifications.map((notif) => (
                 <div
                   key={notif.id}
                   onClick={() => markNotificationRead(notif.id)}
@@ -830,7 +840,7 @@ function BPOWorkspaceShell() {
                   </p>
                 </div>
               ))}
-              {notifications.length === 0 && (
+              {visibleNotifications.length === 0 && (
                 <div className="p-8 text-center text-zinc-400 italic">
                   Nenhum alerta recente.
                 </div>

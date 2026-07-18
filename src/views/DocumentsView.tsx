@@ -3,13 +3,14 @@ import { useBPOState } from "../hooks/useBPOState";
 import { Document } from "../types";
 import { analyzeDocumentVisually } from "../services/documentAnalysis";
 import FileTypeIcon from "../components/FileTypeIcon";
+import DocumentPreview from "../components/DocumentPreview";
 import {
   Bot,
   Check,
   CheckCircle2,
   Clock3,
   Database,
-  Download,
+  Eye,
   Filter,
   FolderOpen,
   Loader2,
@@ -41,6 +42,8 @@ interface PendingAnalysis {
   warnings: string[];
   source: "visual-ai" | "local-fallback";
 }
+
+type BPOUploadMode = "VIEW_ONLY" | "AI_APPROVAL";
 
 const CATEGORIES: Document["category"][] = [
   "Nota fiscal",
@@ -139,6 +142,7 @@ export default function DocumentsView() {
   const {
     activeCompany,
     companies,
+    users,
     documents,
     uploadDocument,
     deleteDocument,
@@ -155,6 +159,15 @@ export default function DocumentsView() {
   const [chatPrompt, setChatPrompt] = useState("");
   const [error, setError] = useState("");
   const [editingAnalysis, setEditingAnalysis] = useState(false);
+  const [queuedFile, setQueuedFile] = useState<File | null>(null);
+  const [bpoUploadMode, setBpoUploadMode] = useState<BPOUploadMode | null>(null);
+  const [flowCompanyId, setFlowCompanyId] = useState("");
+  const [flowRecipientId, setFlowRecipientId] = useState("");
+  const [approvalRecipientId, setApprovalRecipientId] = useState("");
+  const [historyTab, setHistoryTab] = useState<"sent" | "received">("sent");
+  const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(
+    null,
+  );
   const [visualAiAvailable, setVisualAiAvailable] = useState<boolean | null>(
     null,
   );
@@ -197,16 +210,58 @@ export default function DocumentsView() {
   const companyDocuments = useMemo(
     () =>
       documents
-        .filter((document) => document.companyId === activeCompany?.id)
+        .filter(
+          (document) =>
+            document.companyId === activeCompany?.id &&
+            document.uploadedById === currentUser.id,
+        )
         .sort(
           (first, second) =>
             new Date(second.uploadedAt).getTime() -
             new Date(first.uploadedAt).getTime(),
         ),
-    [activeCompany?.id, documents],
+    [activeCompany?.id, currentUser.id, documents],
   );
 
-  const filteredDocuments = companyDocuments.filter((document) => {
+  const receivedDocuments = useMemo(
+    () =>
+      documents
+        .filter((document) => {
+          const sharerRole =
+            document.sharedByRole ||
+            users.find((user) => user.id === document.sharedById)?.role;
+          return (
+            document.companyId === activeCompany?.id &&
+            document.recipientId === currentUser.id &&
+            document.purpose === "VIEW_ONLY" &&
+            ["BPO_ADMIN", "BPO_TEAM"].includes(sharerRole || "")
+          );
+        })
+        .sort(
+          (first, second) =>
+            new Date(second.sharedAt || second.uploadedAt).getTime() -
+            new Date(first.sharedAt || first.uploadedAt).getTime(),
+        ),
+    [activeCompany?.id, currentUser.id, documents, users],
+  );
+
+  const isBpoUser = ["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role);
+  const selectedFlowCompanyId = flowCompanyId || activeCompany?.id || "";
+  const flowRecipients = users.filter(
+    (user) =>
+      user.status === "ACTIVE" &&
+      (bpoUploadMode === "AI_APPROVAL"
+        ? user.role === "CLIENT"
+        : ["CLIENT", "ACCOUNTANT"].includes(user.role)) &&
+      user.companies?.includes(selectedFlowCompanyId),
+  );
+  const approvalRecipient = users.find(
+    (user) => user.id === approvalRecipientId,
+  );
+
+  const historyDocuments =
+    historyTab === "sent" ? companyDocuments : receivedDocuments;
+  const filteredDocuments = historyDocuments.filter((document) => {
     const query = search.toLocaleLowerCase("pt-BR");
     const matchesSearch =
       !query ||
@@ -218,11 +273,19 @@ export default function DocumentsView() {
       (statusFilter === "ALL" || document.status === statusFilter)
     );
   });
+  const previewDocument = historyDocuments.find(
+    (document) => document.id === previewDocumentId,
+  );
 
   if (!activeCompany) return null;
 
-  const analyzeFile = async (file: File) => {
+  const analyzeFile = async (
+    file: File,
+    forcedCompanyId?: string,
+    targetApprovalRecipientId?: string,
+  ) => {
     setError("");
+    setApprovalRecipientId(targetApprovalRecipientId || "");
     if (file.size > maxDocumentSize) {
       setError(`O arquivo excede o limite de ${formatSize(maxDocumentSize)}.`);
       return;
@@ -234,11 +297,14 @@ export default function DocumentsView() {
     const details = inferDocumentDetails(file.name);
     const formattedSize = formatSize(file.size);
     const context = chatPrompt.trim();
+    const analysisCompany =
+      availableCompanies.find((company) => company.id === forcedCompanyId) ||
+      activeCompany;
 
     try {
       const analysis = await analyzeDocumentVisually(
         file,
-        activeCompany.tradeName,
+        analysisCompany.tradeName,
         context,
       );
       const matchedCompany = availableCompanies.find(
@@ -259,7 +325,7 @@ export default function DocumentsView() {
         supplier: analysis.supplier || "A confirmar",
         dueDate: analysis.dueDate || "",
         expenseType: analysis.expenseType || "A confirmar",
-        companyId: matchedCompany?.id || activeCompany.id,
+        companyId: forcedCompanyId || matchedCompany?.id || activeCompany.id,
         documentNumber: analysis.documentNumber || "",
         amount: Number(analysis.amount) || 0,
         warnings: analysis.warnings || [],
@@ -268,7 +334,10 @@ export default function DocumentsView() {
           Fornecedor: analysis.supplier || "A confirmar",
           Vencimento: analysis.dueDate || "A confirmar",
           "Tipo de despesa": analysis.expenseType || "A confirmar",
-          Empresa: matchedCompany?.tradeName || activeCompany.tradeName,
+          Empresa:
+            forcedCompanyId
+              ? analysisCompany.tradeName
+              : matchedCompany?.tradeName || activeCompany.tradeName,
           Valor: analysis.amount
             ? `${analysis.currency || "BRL"} ${Number(analysis.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
             : "A confirmar",
@@ -299,7 +368,7 @@ export default function DocumentsView() {
         supplier: details.supplier,
         dueDate: details.dueDate,
         expenseType: details.expenseType,
-        companyId: activeCompany.id,
+        companyId: forcedCompanyId || activeCompany.id,
         documentNumber: "",
         amount: 0,
         warnings: [
@@ -311,7 +380,7 @@ export default function DocumentsView() {
           Fornecedor: details.supplier,
           Vencimento: details.dueDate || "A confirmar",
           "Tipo de despesa": details.expenseType,
-          Empresa: activeCompany.tradeName,
+          Empresa: analysisCompany.tradeName,
           Competência: defaultCompetence,
           Formato:
             file.type ||
@@ -328,10 +397,108 @@ export default function DocumentsView() {
     }
   };
 
+  const storeOriginalFile = async (file: File, warnings: string[]) => {
+    if (!persistentUploads) {
+      warnings.push(
+        "Neste deploy, somente os dados do envio são mantidos no navegador; o arquivo original não é armazenado.",
+      );
+      return undefined;
+    }
+    const data = await readFileAsBase64(file);
+    const response = await fetch("/api/documents/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data,
+        fileName: file.name,
+        mimeType: file.type,
+      }),
+    });
+    const result = (await response.json()) as {
+      url?: string;
+      error?: string;
+    };
+    if (!response.ok || !result.url)
+      throw new Error(
+        result.error || "Não foi possível armazenar o arquivo.",
+      );
+    return result.url;
+  };
+
+  const resetBpoUploadFlow = () => {
+    setQueuedFile(null);
+    setBpoUploadMode(null);
+    setFlowCompanyId("");
+    setFlowRecipientId("");
+  };
+
   const handleFileInput = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) analyzeFile(file);
     event.target.value = "";
+    if (!file) return;
+    setError("");
+    if (file.size > maxDocumentSize) {
+      setError(`O arquivo excede o limite de ${formatSize(maxDocumentSize)}.`);
+      return;
+    }
+    if (isBpoUser) {
+      setQueuedFile(file);
+      setBpoUploadMode(null);
+      setFlowCompanyId(activeCompany.id);
+      setFlowRecipientId("");
+      return;
+    }
+    void analyzeFile(file);
+  };
+
+  const shareQueuedFile = async () => {
+    if (!queuedFile || !flowRecipientId || !selectedFlowCompanyId) return;
+    setError("");
+    setIsAnalyzing(true);
+    const file = queuedFile;
+    const warnings: string[] = [];
+    try {
+      const previewUrl = await storeOriginalFile(file, warnings);
+      const now = new Date();
+      uploadDocument({
+        name: file.name,
+        description: "Documento avulso compartilhado somente para visualização.",
+        category: "Outros",
+        competenceMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+        fileSize: formatSize(file.size),
+        mimeType: file.type || "application/octet-stream",
+        companyId: selectedFlowCompanyId,
+        recipientId: flowRecipientId,
+        analysisWarnings: warnings,
+        previewUrl,
+        extractedData: {
+          Finalidade: "Somente visualização",
+          Empresa:
+            companies.find((company) => company.id === selectedFlowCompanyId)
+              ?.tradeName || activeCompany.tradeName,
+          "Compartilhado por": currentUser.name,
+        },
+      });
+      setChatPrompt("");
+      resetBpoUploadFlow();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Falha ao compartilhar o documento.",
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const analyzeQueuedFileForApproval = () => {
+    if (!queuedFile || !flowRecipientId || !selectedFlowCompanyId) return;
+    const file = queuedFile;
+    const companyId = selectedFlowCompanyId;
+    const recipientId = flowRecipientId;
+    resetBpoUploadFlow();
+    void analyzeFile(file, companyId, recipientId);
   };
 
   const confirmDocument = async () => {
@@ -339,33 +506,11 @@ export default function DocumentsView() {
     setError("");
     setIsAnalyzing(true);
     try {
-      let previewUrl: string | undefined;
       const storageWarnings = [...pending.warnings];
-      if (persistentUploads) {
-        const data = await readFileAsBase64(pending.file);
-        const response = await fetch("/api/documents/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data,
-            fileName: pending.file.name,
-            mimeType: pending.file.type,
-          }),
-        });
-        const result = (await response.json()) as {
-          url?: string;
-          error?: string;
-        };
-        if (!response.ok || !result.url)
-          throw new Error(
-            result.error || "Não foi possível armazenar o arquivo.",
-          );
-        previewUrl = result.url;
-      } else {
-        storageWarnings.push(
-          "Neste deploy, somente os dados extraídos são mantidos no navegador; o arquivo original não é armazenado.",
-        );
-      }
+      const previewUrl = await storeOriginalFile(
+        pending.file,
+        storageWarnings,
+      );
       uploadDocument({
         name: pending.file.name,
         description: pending.summary,
@@ -383,6 +528,9 @@ export default function DocumentsView() {
         amount: pending.amount,
         analysisWarnings: storageWarnings,
         previewUrl,
+        approvalRecipientId: isBpoUser
+          ? approvalRecipientId || undefined
+          : undefined,
         extractedData: {
           ...pending.extractedData,
           "Tipo identificado": pending.category,
@@ -399,6 +547,7 @@ export default function DocumentsView() {
         },
       });
       setPending(null);
+      setApprovalRecipientId("");
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -431,13 +580,210 @@ export default function DocumentsView() {
 
   return (
     <div className="space-y-6">
+      {queuedFile && isBpoUser && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={resetBpoUploadFlow}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="p-5 border-b border-zinc-200 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black text-[#C8102E] uppercase tracking-wider">
+                  Defina a finalidade antes da IA
+                </p>
+                <h3 className="text-base font-bold text-zinc-900 mt-1">
+                  Como deseja enviar este arquivo?
+                </h3>
+                <p className="text-xs text-zinc-500 mt-1 break-all">
+                  {queuedFile.name}
+                </p>
+              </div>
+              <button
+                onClick={resetBpoUploadFlow}
+                className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                aria-label="Fechar escolha de finalidade"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setBpoUploadMode("VIEW_ONLY");
+                    setFlowRecipientId("");
+                  }}
+                  className={`rounded-xl border p-4 text-left cursor-pointer transition ${bpoUploadMode === "VIEW_ONLY" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-zinc-200 hover:border-blue-300"}`}
+                >
+                  <Eye className="h-5 w-5 text-blue-600" />
+                  <p className="text-xs font-bold text-zinc-900 mt-3">
+                    Compartilhar para visualização
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
+                    Envia ao cliente ou contador sem acionar a IA, sem aprovação
+                    e sem gerar lançamento financeiro.
+                  </p>
+                </button>
+                <button
+                  onClick={() => {
+                    setBpoUploadMode("AI_APPROVAL");
+                    setFlowRecipientId("");
+                  }}
+                  className={`rounded-xl border p-4 text-left cursor-pointer transition ${bpoUploadMode === "AI_APPROVAL" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-zinc-200 hover:border-violet-300"}`}
+                >
+                  <Sparkles className="h-5 w-5 text-violet-600" />
+                  <p className="text-xs font-bold text-zinc-900 mt-3">
+                    Analisar com IA e aprovar
+                  </p>
+                  <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
+                    A IA identifica os dados; depois da sua revisão, o documento
+                    segue para aprovação documental do cliente.
+                  </p>
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="text-[10px] font-bold text-zinc-600">
+                  Empresa
+                  <select
+                    value={selectedFlowCompanyId}
+                    onChange={(event) => {
+                      setFlowCompanyId(event.target.value);
+                      setFlowRecipientId("");
+                    }}
+                    className="mt-1 w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-xs bg-white"
+                  >
+                    {availableCompanies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.tradeName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[10px] font-bold text-zinc-600">
+                  {bpoUploadMode === "AI_APPROVAL"
+                    ? "Cliente aprovador"
+                    : "Destinatário"}
+                  <select
+                    disabled={!bpoUploadMode}
+                    value={flowRecipientId}
+                    onChange={(event) =>
+                      setFlowRecipientId(event.target.value)
+                    }
+                    className="mt-1 w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-xs bg-white disabled:bg-zinc-100"
+                  >
+                    <option value="">
+                      {bpoUploadMode
+                        ? "Selecione o destinatário"
+                        : "Escolha primeiro a finalidade"}
+                    </option>
+                    {flowRecipients.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name} ·{" "}
+                        {user.role === "CLIENT" ? "Cliente" : "Contador"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-zinc-200 flex justify-end gap-2">
+              <button
+                onClick={resetBpoUploadFlow}
+                className="px-4 py-2 text-xs font-bold text-zinc-500 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={
+                  bpoUploadMode === "VIEW_ONLY"
+                    ? shareQueuedFile
+                    : analyzeQueuedFileForApproval
+                }
+                disabled={!bpoUploadMode || !flowRecipientId || isAnalyzing}
+                className="px-4 py-2 bg-[#0B2C52] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer"
+              >
+                {bpoUploadMode === "VIEW_ONLY" ? (
+                  <Eye className="h-4 w-4" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {isAnalyzing
+                  ? "Enviando..."
+                  : bpoUploadMode === "VIEW_ONLY"
+                    ? "Compartilhar agora"
+                    : "Continuar com a IA"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewDocument && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+          onClick={() => setPreviewDocumentId(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] overflow-hidden flex flex-col"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-[#0B2C52] uppercase tracking-wider">
+                  {historyTab === "received"
+                    ? "Documento compartilhado — somente visualização"
+                    : "Visualização do documento"}
+                </p>
+                <h3 className="text-sm font-bold text-zinc-900 truncate">
+                  {previewDocument.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setPreviewDocumentId(null)}
+                className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                aria-label="Fechar visualização"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 bg-zinc-100 p-3 sm:p-5">
+              <DocumentPreview
+                name={previewDocument.name}
+                url={previewDocument.signedUrl}
+              />
+            </div>
+            <div className="px-5 py-3 border-t border-zinc-200 flex justify-between items-center gap-3 text-xs">
+              <span className="text-zinc-500 truncate">
+                {historyTab === "received"
+                  ? `Compartilhado por ${previewDocument.sharedByName || "Equipe BPO"}`
+                  : previewDocument.recipientName
+                    ? `Compartilhado com ${previewDocument.recipientName}`
+                    : "Documento do seu histórico"}
+              </span>
+              <button
+                onClick={() => setPreviewDocumentId(null)}
+                className="px-4 py-2 bg-[#0B2C52] text-white rounded-lg font-bold cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-zinc-900">
             Central de Documentos
           </h2>
           <p className="text-xs text-zinc-500 mt-1">
-            Envie documentos para leitura da IA e acompanhe o pré-lançamento.
+            Envie documentos e acompanhe somente o histórico deste acesso.
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-zinc-500 bg-white border border-zinc-200 rounded-lg px-3 py-2">
@@ -662,14 +1008,15 @@ export default function DocumentsView() {
                       <label className="text-[10px] font-bold text-zinc-500 sm:col-span-2">
                         Empresa
                         <select
+                          disabled={Boolean(approvalRecipientId)}
                           value={pending.companyId}
-                          onChange={(event) =>
+                          onChange={(event) => {
                             setPending({
                               ...pending,
                               companyId: event.target.value,
-                            })
-                          }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs bg-white"
+                            });
+                          }}
+                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs bg-white disabled:bg-zinc-100 disabled:text-zinc-500"
                         >
                           {availableCompanies.map((company) => (
                             <option key={company.id} value={company.id}>
@@ -726,6 +1073,13 @@ export default function DocumentsView() {
                     </div>
                   )}
 
+                  {isBpoUser && approvalRecipient && (
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] text-blue-700">
+                      <strong>Fluxo selecionado:</strong> análise por IA e envio
+                      para aprovação documental de {approvalRecipient.name}.
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-2">
                     {editingAnalysis ? (
                       <button
@@ -744,14 +1098,26 @@ export default function DocumentsView() {
                     )}
                     <button
                       onClick={confirmDocument}
-                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
+                      disabled={
+                        isAnalyzing ||
+                        Boolean(approvalRecipientId && !approvalRecipient)
+                      }
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
                     >
-                      <Check className="h-4 w-4" /> Incluir documento
+                      {approvalRecipientId ? (
+                        <Send className="h-4 w-4" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}{" "}
+                      {approvalRecipientId
+                        ? "Enviar para aprovação documental"
+                        : "Incluir documento"}
                     </button>
                     <button
                       onClick={() => {
                         setPending(null);
                         setEditingAnalysis(false);
+                        setApprovalRecipientId("");
                       }}
                       className="flex items-center gap-1.5 border border-zinc-200 text-zinc-600 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
                     >
@@ -815,8 +1181,32 @@ export default function DocumentsView() {
             <div className="p-4 border-b border-zinc-200">
               <h3 className="text-sm font-bold">Histórico de Documentos</h3>
               <p className="text-[10px] text-zinc-500 mt-0.5">
-                Inclusões e informações desta empresa.
+                {historyTab === "sent"
+                  ? `Somente os documentos enviados por ${currentUser.name}.`
+                  : "Arquivos avulsos compartilhados pelo BPO somente para visualização."}
               </p>
+              <div className="grid grid-cols-2 gap-1 mt-3 bg-zinc-100 rounded-lg p-1">
+                <button
+                  onClick={() => {
+                    setHistoryTab("sent");
+                    setStatusFilter("ALL");
+                    setPreviewDocumentId(null);
+                  }}
+                  className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "sent" ? "bg-white text-[#0B2C52] shadow-sm" : "text-zinc-500"}`}
+                >
+                  Meus envios ({companyDocuments.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setHistoryTab("received");
+                    setStatusFilter("ALL");
+                    setPreviewDocumentId(null);
+                  }}
+                  className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "received" ? "bg-white text-[#0B2C52] shadow-sm" : "text-zinc-500"}`}
+                >
+                  Recebidos do BPO ({receivedDocuments.length})
+                </button>
+              </div>
             </div>
             <div className="p-3 border-b border-zinc-100 flex gap-2">
               <div className="relative flex-1">
@@ -842,6 +1232,7 @@ export default function DocumentsView() {
                   <option value="Aguardando Aprovação">
                     Aguardando Aprovação
                   </option>
+                  <option value="Compartilhado">Compartilhados</option>
                   <option value="Lançado">Lançados</option>
                   <option value="Cancelado">Cancelados</option>
                 </select>
@@ -864,7 +1255,7 @@ export default function DocumentsView() {
                           {document.name}
                         </h4>
                         <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full h-fit ${document.status === "Lançado" ? "bg-emerald-50 text-emerald-700" : document.status.includes("Aguardando") ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full h-fit ${document.status === "Lançado" ? "bg-emerald-50 text-emerald-700" : document.status === "Compartilhado" ? "bg-blue-50 text-blue-700" : document.status.includes("Aguardando") ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}
                         >
                           {document.status}
                         </span>
@@ -874,25 +1265,38 @@ export default function DocumentsView() {
                       </p>
                       <p className="text-[9px] text-zinc-400 mt-1 flex items-center gap-1">
                         <Clock3 className="h-3 w-3" />{" "}
-                        {new Date(document.uploadedAt).toLocaleString("pt-BR")}{" "}
-                        · {document.uploadedByName}
+                        {new Date(
+                          historyTab === "received"
+                            ? document.sharedAt || document.uploadedAt
+                            : document.uploadedAt,
+                        ).toLocaleString("pt-BR")}{" "}
+                        · {historyTab === "received" ? "recebido" : "este acesso"}
                       </p>
+                      {historyTab === "sent" && document.recipientName && (
+                        <p className="text-[9px] text-blue-600 mt-1">
+                          Compartilhado para visualização com{" "}
+                          {document.recipientName}
+                        </p>
+                      )}
+                      {historyTab === "received" && (
+                        <p className="text-[9px] text-blue-600 mt-1">
+                          Compartilhado por {document.sharedByName || "Equipe BPO"}
+                        </p>
+                      )}
                       <p className="text-[10px] text-zinc-500 mt-2 line-clamp-2">
                         {document.aiSummary || document.description}
                       </p>
                       <div className="flex gap-1 mt-2">
                         <button
-                          onClick={() =>
-                            alert(
-                              `Link seguro: ${document.signedUrl || "indisponível"}`,
-                            )
-                          }
+                          onClick={() => setPreviewDocumentId(document.id)}
                           className="p-1.5 text-[#0B2C52] hover:bg-blue-50 rounded cursor-pointer"
-                          title="Baixar"
+                          title="Visualizar"
                         >
-                          <Download className="h-3.5 w-3.5" />
+                          <Eye className="h-3.5 w-3.5" />
                         </button>
-                        {hasPermission("documents.upload") && (
+                        {historyTab === "sent" &&
+                          document.uploadedById === currentUser.id &&
+                          hasPermission("documents.upload") && (
                           <button
                             onClick={() => handleDelete(document)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded cursor-pointer"

@@ -55,7 +55,10 @@ const LEGACY_DEMO_USER_IDS = new Set([
   "u-accountant",
 ]);
 
-const createDocumentApproval = (document: Document): Approval => {
+const createDocumentApproval = (
+  document: Document,
+  requesterRole?: UserRole,
+): Approval => {
   const approvalDeadline = new Date();
   approvalDeadline.setDate(approvalDeadline.getDate() + 2);
   return {
@@ -68,6 +71,10 @@ const createDocumentApproval = (document: Document): Approval => {
     dueDate: document.dueDate || document.uploadedAt.slice(0, 10),
     requesterId: document.uploadedById,
     requesterName: document.uploadedByName,
+    requesterRole,
+    recipientId: document.recipientId,
+    recipientName: document.recipientName,
+    recipientRole: document.recipientRole,
     dueDateApproval: approvalDeadline.toISOString(),
     status: "Pendente",
     attachmentName: document.name,
@@ -107,6 +114,8 @@ interface BPOContextType {
   logout: () => void;
   switchCompany: (companyId: string) => void;
   hasPermission: (permission: string) => boolean;
+  isApprovalVisibleToCurrentUser: (approval: Approval) => boolean;
+  canDecideApproval: (approval: Approval) => boolean;
   addMasterData: (
     type: MasterDataType,
     name: string,
@@ -179,12 +188,18 @@ interface BPOContextType {
     amount?: number;
     analysisWarnings?: string[];
     previewUrl?: string;
+    recipientId?: string;
+    approvalRecipientId?: string;
   }) => void;
   deleteDocument: (id: string) => void;
-  updateDocument: (id: string, updates: Partial<Document>) => void;
+  updateDocument: (id: string, updates: Partial<Document>) => boolean;
   launchDocument: (id: string, updates?: Partial<Document>) => void;
-  submitDocumentForApproval: (id: string, updates?: Partial<Document>) => void;
-  cancelDocument: (id: string) => void;
+  submitDocumentForApproval: (
+    id: string,
+    updates?: Partial<Document>,
+    recipientId?: string,
+  ) => boolean;
+  cancelDocument: (id: string) => boolean;
   createStandaloneLaunch: (
     data: Partial<Document> &
       Pick<Document, "description" | "supplier" | "dueDate" | "amount">,
@@ -226,6 +241,8 @@ interface BPOContextType {
     title: string,
     message: string,
     type: Notification["type"],
+    userId?: string,
+    companyId?: string,
   ) => void;
   markNotificationRead: (id: string) => void;
   clearNotifications: () => void;
@@ -381,9 +398,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     })),
   );
   const [documents, setDocuments] = useState<Document[]>(() =>
-    loadState<Document[]>("documents", INITIAL_DOCUMENTS).map((document) => ({
-      ...document,
-      status:
+    loadState<Document[]>("documents", INITIAL_DOCUMENTS).map((document) => {
+      const normalizedStatus =
         (
           {
             Pendente: "Aguardando Análise",
@@ -391,11 +407,51 @@ export function BPOProvider({ children }: { children: ReactNode }) {
             Rejeitado: "Cancelado",
             Arquivado: "Cancelado",
           } as Record<string, Document["status"]>
-        )[document.status] || document.status,
-      signedUrl: document.signedUrl?.includes("bpo-storage.com")
-        ? undefined
-        : document.signedUrl,
-    })),
+        )[document.status] || document.status;
+      const previousDirectApproval = approvals.find(
+        (approval) =>
+          approval.type === "DOCUMENTO" &&
+          approval.relatedId === document.id &&
+          approval.recipientId === document.recipientId &&
+          document.purpose !== "PROCESSING" &&
+          ((approval.id === `apv-doc-${document.id}` &&
+            approval.requesterId === document.uploadedById) ||
+            approval.recipientRole === "ACCOUNTANT"),
+      );
+      const wasDirectApprovalFromPreviousRule = Boolean(previousDirectApproval);
+      return {
+        ...document,
+        status: wasDirectApprovalFromPreviousRule
+          ? "Compartilhado"
+          : normalizedStatus,
+        purpose:
+          document.purpose ||
+          (wasDirectApprovalFromPreviousRule ? "VIEW_ONLY" : "PROCESSING"),
+        sharedById:
+          document.sharedById ||
+          (wasDirectApprovalFromPreviousRule
+            ? previousDirectApproval?.requesterId
+            : undefined),
+        sharedByName:
+          document.sharedByName ||
+          (wasDirectApprovalFromPreviousRule
+            ? previousDirectApproval?.requesterName
+            : undefined),
+        sharedByRole:
+          document.sharedByRole ||
+          (wasDirectApprovalFromPreviousRule
+            ? (previousDirectApproval?.requesterRole as Document["sharedByRole"])
+            : undefined),
+        sharedAt:
+          document.sharedAt ||
+          (wasDirectApprovalFromPreviousRule
+            ? previousDirectApproval?.createdAt
+            : undefined),
+        signedUrl: document.signedUrl?.includes("bpo-storage.com")
+          ? undefined
+          : document.signedUrl,
+      };
+    }),
   );
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() =>
     loadState<AuditLog[]>("auditLogs", INITIAL_AUDIT_LOGS).filter(
@@ -429,6 +485,24 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    const viewOnlyDocumentIds = new Set(
+      documents
+        .filter((document) => document.purpose === "VIEW_ONLY")
+        .map((document) => document.id),
+    );
+    setApprovals((current) => {
+      const cleaned = current.filter(
+        (approval) =>
+          !(
+            viewOnlyDocumentIds.has(approval.relatedId) &&
+            approval.type === "DOCUMENTO"
+          ),
+      );
+      return cleaned.length === current.length ? current : cleaned;
+    });
+  }, [documents]);
+
+  useEffect(() => {
     setApprovals((current) => {
       const linkedDocumentIds = new Set(
         current
@@ -439,9 +513,15 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         .filter(
           (document) =>
             document.status === "Aguardando Aprovação" &&
+            Boolean(document.recipientId) &&
             !linkedDocumentIds.has(document.id),
         )
-        .map(createDocumentApproval);
+        .map((document) =>
+          createDocumentApproval(
+            document,
+            users.find((user) => user.id === document.uploadedById)?.role,
+          ),
+        );
       let changed = missingApprovals.length > 0;
       const synchronized = current.map((approval) => {
         if (approval.type !== "DOCUMENTO") return approval;
@@ -451,17 +531,32 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         if (!document) return approval;
         const attachmentName = document.name;
         const attachmentUrl = document.signedUrl;
+        const requesterRole =
+          approval.requesterRole ||
+          users.find((user) => user.id === approval.requesterId)?.role;
         if (
           approval.attachmentName === attachmentName &&
-          approval.attachmentUrl === attachmentUrl
+          approval.attachmentUrl === attachmentUrl &&
+          approval.requesterRole === requesterRole &&
+          approval.recipientId === document.recipientId &&
+          approval.recipientName === document.recipientName &&
+          approval.recipientRole === document.recipientRole
         )
           return approval;
         changed = true;
-        return { ...approval, attachmentName, attachmentUrl };
+        return {
+          ...approval,
+          attachmentName,
+          attachmentUrl,
+          requesterRole,
+          recipientId: document.recipientId,
+          recipientName: document.recipientName,
+          recipientRole: document.recipientRole,
+        };
       });
       return changed ? [...missingApprovals, ...synchronized] : current;
     });
-  }, [documents]);
+  }, [documents, users]);
 
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
     const storedUserId = loadState("currentUserId", PRIMARY_USER_ID);
@@ -602,6 +697,45 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const isApprovalVisibleToCurrentUser = (approval: Approval): boolean => {
+    if (approval.companyId !== activeCompany?.id) return false;
+    if (approval.type !== "DOCUMENTO")
+      return (
+        ["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role) ||
+        hasPermission("approvals.approve")
+      );
+    return (
+      approval.requesterId === currentUser.id ||
+      approval.recipientId === currentUser.id
+    );
+  };
+
+  const canDecideApproval = (approval: Approval): boolean => {
+    if (
+      approval.status !== "Pendente" ||
+      approval.companyId !== activeCompany?.id
+    )
+      return false;
+    if (approval.type !== "DOCUMENTO")
+      return hasPermission("approvals.approve");
+
+    const requesterRole =
+      approval.requesterRole ||
+      users.find((user) => user.id === approval.requesterId)?.role;
+    const relatedDocument = documents.find(
+      (document) => document.id === approval.relatedId,
+    );
+    return (
+      Boolean(relatedDocument) &&
+      relatedDocument?.purpose !== "VIEW_ONLY" &&
+      relatedDocument?.status !== "Compartilhado" &&
+      ["BPO_ADMIN", "BPO_TEAM"].includes(requesterRole || "") &&
+      currentUser.role === "CLIENT" &&
+      approval.recipientId === currentUser.id &&
+      approval.recipientRole === currentUser.role
+    );
+  };
+
   // --- AUTHENTICATION ---
   const login = (
     email: string,
@@ -720,10 +854,13 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     title: string,
     message: string,
     type: Notification["type"],
+    userId?: string,
+    companyId: string = activeCompanyId,
   ) => {
     const notif: Notification = {
       id: `not-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      companyId: activeCompanyId,
+      companyId,
+      userId,
       title,
       message,
       type,
@@ -735,12 +872,25 @@ export function BPOProvider({ children }: { children: ReactNode }) {
 
   const markNotificationRead = (id: string) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      prev.map((notification) =>
+        notification.id === id &&
+        (!notification.userId || notification.userId === currentUser.id) &&
+        (!notification.companyId || notification.companyId === activeCompany?.id)
+          ? { ...notification, isRead: true }
+          : notification,
+      ),
     );
   };
 
   const clearNotifications = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        (!notification.userId || notification.userId === currentUser.id) &&
+        (!notification.companyId || notification.companyId === activeCompany?.id)
+          ? { ...notification, isRead: true }
+          : notification,
+      ),
+    );
   };
 
   const addMasterData = (
@@ -1247,11 +1397,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     setApprovals((prev) => {
       const existing = prev.find((a) => a.id === approvalId);
       if (!existing) return prev;
-      const canDecide =
-        existing.type === "DOCUMENTO"
-          ? currentUser.role === "CLIENT"
-          : hasPermission("approvals.approve");
-      if (!canDecide) return prev;
+      if (!canDecideApproval(existing)) return prev;
 
       const step = {
         id: `step-${Date.now()}`,
@@ -1337,6 +1483,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
           ? `O lançamento "${existing.attachmentName || existing.description}" foi ${decision === "Aprovada" ? "aprovado e lançado" : decision === "Rejeitada" ? "rejeitado e encerrado" : "devolvido ao BPO para ajuste"} por ${currentUser.name}.`
           : `Aprovação "${existing.description}" de R$ ${existing.amount.toLocaleString("pt-BR")} foi ${decision.toLowerCase()} por ${currentUser.name}.`,
         decision === "Aprovada" ? "SUCCESS" : "WARNING",
+        existing.type === "DOCUMENTO" ? existing.requesterId : undefined,
+        existing.companyId,
       );
 
       return prev.map((a) => (a.id === approvalId ? updated : a));
@@ -1363,9 +1511,16 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     amount?: number;
     analysisWarnings?: string[];
     previewUrl?: string;
+    recipientId?: string;
+    approvalRecipientId?: string;
   }) => {
     if (!hasPermission("documents.upload")) return;
 
+    const {
+      recipientId: requestedShareRecipientId,
+      approvalRecipientId: requestedApprovalRecipientId,
+      ...documentData
+    } = data;
     const id = `doc-${Date.now()}`;
     const targetCompanyId =
       data.companyId &&
@@ -1373,20 +1528,91 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         currentUser.companies?.includes(data.companyId))
         ? data.companyId
         : activeCompanyId;
+    const shareRecipient = ["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role)
+      ? users.find(
+          (user) =>
+            user.id === requestedShareRecipientId &&
+            user.status === "ACTIVE" &&
+            ["CLIENT", "ACCOUNTANT"].includes(user.role) &&
+            user.companies?.includes(targetCompanyId),
+        )
+      : undefined;
+    const approvalRecipient =
+      !shareRecipient &&
+      ["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role)
+        ? users.find(
+            (user) =>
+              user.id === requestedApprovalRecipientId &&
+              user.status === "ACTIVE" &&
+              user.role === "CLIENT" &&
+              user.companies?.includes(targetCompanyId),
+          )
+        : undefined;
+    const recipient = shareRecipient || approvalRecipient;
     const newDoc: Document = {
-      ...data,
+      ...documentData,
       id,
       companyId: targetCompanyId,
       uploadedAt: new Date().toISOString(),
       uploadedById: currentUser.id,
       uploadedByName: currentUser.name,
+      recipientId: recipient?.id,
+      recipientName: recipient?.name,
+      recipientRole: recipient?.role as Document["recipientRole"],
+      sharedById: shareRecipient ? currentUser.id : undefined,
+      sharedByName: shareRecipient ? currentUser.name : undefined,
+      sharedByRole: shareRecipient
+        ? (currentUser.role as Document["sharedByRole"])
+        : undefined,
+      sharedAt: shareRecipient ? new Date().toISOString() : undefined,
       hash: Math.random().toString(16).substr(2, 32),
-      status: "Aguardando Análise",
+      status: shareRecipient
+        ? "Compartilhado"
+        : approvalRecipient
+          ? "Aguardando Aprovação"
+          : "Aguardando Análise",
+      purpose: shareRecipient ? "VIEW_ONLY" : "PROCESSING",
       origin: "Documento",
       signedUrl: data.previewUrl,
     };
 
     setDocuments((prev) => [...prev, newDoc]);
+    if (shareRecipient) {
+      createAuditLog(
+        "COMPARTILHAR_DOCUMENTO_VISUALIZACAO",
+        "Document",
+        newDoc.id,
+        targetCompanyId,
+        null,
+        newDoc,
+      );
+      addNotification(
+        "Documento recebido do BPO",
+        `${currentUser.name} compartilhou "${newDoc.name}" somente para visualização.`,
+        "INFO",
+        shareRecipient.id,
+        targetCompanyId,
+      );
+    }
+    if (approvalRecipient) {
+      const approval = createDocumentApproval(newDoc, currentUser.role);
+      setApprovals((prev) => [...prev, approval]);
+      createAuditLog(
+        "ENVIAR_DOCUMENTO_APROVACAO",
+        "Approval",
+        approval.id,
+        targetCompanyId,
+        null,
+        approval,
+      );
+      addNotification(
+        "Documento analisado para aprovação",
+        `${currentUser.name} enviou "${newDoc.name}" para sua aprovação documental.`,
+        "ALERT",
+        approvalRecipient.id,
+        targetCompanyId,
+      );
+    }
     createAuditLog(
       "UPLOAD_DOCUMENTO",
       "Document",
@@ -1397,32 +1623,54 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     );
 
     addNotification(
-      "Documento Enviado",
-      `O arquivo "${data.name}" foi enviado com sucesso para a categoria ${data.category}.`,
+      shareRecipient
+        ? "Documento compartilhado"
+        : approvalRecipient
+          ? "Documento enviado para aprovação"
+          : "Documento enviado",
+      shareRecipient
+        ? `O arquivo "${data.name}" foi compartilhado para visualização com ${shareRecipient.name}.`
+        : approvalRecipient
+          ? `O arquivo "${data.name}" foi analisado e enviado para aprovação de ${approvalRecipient.name}.`
+          : `O arquivo "${data.name}" foi incluído com sucesso na categoria ${data.category}.`,
       "SUCCESS",
+      currentUser.id,
+      targetCompanyId,
     );
   };
 
   const deleteDocument = (id: string) => {
-    setDocuments((prev) => {
-      const existing = prev.find((d) => d.id === id);
-      if (!existing) return prev;
+    const existing = documents.find((document) => document.id === id);
+    if (
+      !existing ||
+      existing.companyId !== activeCompany?.id ||
+      existing.uploadedById !== currentUser.id
+    )
+      return;
 
-      createAuditLog(
-        "DELETAR_DOCUMENTO",
-        "Document",
-        id,
-        existing.companyId,
-        existing,
-        null,
-      );
-      return prev.filter((d) => d.id !== id);
-    });
+    createAuditLog(
+      "DELETAR_DOCUMENTO",
+      "Document",
+      id,
+      existing.companyId,
+      existing,
+      null,
+    );
+    setApprovals((items) =>
+      items.map((approval) =>
+        approval.relatedId === id && approval.status === "Pendente"
+          ? { ...approval, status: "Cancelada" }
+          : approval,
+      ),
+    );
+    setDocuments((prev) => prev.filter((document) => document.id !== id));
 
     addNotification(
       "Documento Removido",
       "Um documento foi excluído do repositório da empresa.",
       "INFO",
+      currentUser.id,
+      existing.companyId,
     );
   };
 
@@ -1820,21 +2068,157 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   };
 
   const updateDocument = (id: string, updates: Partial<Document>) => {
-    setDocuments((prev) =>
-      prev.map((document) => {
-        if (document.id !== id) return document;
-        const updated = { ...document, ...updates };
-        createAuditLog(
-          "AJUSTAR_PRE_LANCAMENTO",
-          "Document",
-          id,
-          document.companyId,
-          document,
-          updated,
+    const document = documents.find((item) => item.id === id);
+    if (
+      !document ||
+      document.companyId !== activeCompany?.id ||
+      document.purpose === "VIEW_ONLY" ||
+      document.status === "Compartilhado" ||
+      !["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role)
+    )
+      return false;
+
+    const isManualLaunch =
+      document.origin === "Manual" ||
+      document.mimeType === "application/x-manual-entry";
+    const safeUpdates =
+      isManualLaunch && document.status === "Lançado"
+        ? { ...updates, entryType: document.entryType }
+        : updates;
+    const updated: Document = {
+      ...document,
+      ...safeUpdates,
+      amount:
+        safeUpdates.amount === undefined
+          ? document.amount
+          : Number(safeUpdates.amount),
+    };
+
+    if (isManualLaunch && document.status === "Lançado") {
+      if (document.entryType === "Conta a Receber") {
+        const linked = accountsReceivable.find(
+          (item) => item.id === document.relatedEntityId,
         );
-        return updated;
-      }),
+        if (
+          !linked ||
+          linked.receivedAmount > 0 ||
+          ["Recebido", "Recebida", "Cancelado", "Cancelada"].includes(
+            linked.status,
+          )
+        )
+          return false;
+        setAccountsReceivable((current) =>
+          current.map((item) =>
+            item.id === linked.id
+              ? {
+                  ...item,
+                  description: updated.description,
+                  customer: updated.supplier || "Cliente a confirmar",
+                  category: updated.expenseType || updated.category,
+                  costCenter: updated.costCenter || "A classificar",
+                  competenceMonth: updated.competenceMonth,
+                  dueDate: updated.dueDate || item.dueDate,
+                  amount: updated.amount || 0,
+                  paymentMethod: updated.paymentMethod || "A definir",
+                  bankAccountId: updated.bankAccountId || "",
+                  recurrence: updated.recurrence || "Nenhuma",
+                  documentNumber: updated.documentNumber || "",
+                  notes: updated.notes || "Lançamento avulso.",
+                  updatedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        );
+      } else if (document.entryType === "Transferência") {
+        if (
+          !document.bankAccountId ||
+          !document.destinationBankAccountId ||
+          !updated.bankAccountId ||
+          !updated.destinationBankAccountId ||
+          updated.bankAccountId === updated.destinationBankAccountId ||
+          !bankAccounts.some(
+            (account) =>
+              account.id === document.bankAccountId &&
+              account.companyId === document.companyId,
+          ) ||
+          !bankAccounts.some(
+            (account) =>
+              account.id === document.destinationBankAccountId &&
+              account.companyId === document.companyId,
+          ) ||
+          !bankAccounts.some(
+            (account) =>
+              account.id === updated.bankAccountId &&
+              account.companyId === document.companyId,
+          ) ||
+          !bankAccounts.some(
+            (account) =>
+              account.id === updated.destinationBankAccountId &&
+              account.companyId === document.companyId,
+          )
+        )
+          return false;
+        setBankAccounts((current) =>
+          current.map((account) => {
+            let balance = account.balance;
+            if (account.id === document.bankAccountId)
+              balance += document.amount || 0;
+            if (account.id === document.destinationBankAccountId)
+              balance -= document.amount || 0;
+            if (account.id === updated.bankAccountId)
+              balance -= updated.amount || 0;
+            if (account.id === updated.destinationBankAccountId)
+              balance += updated.amount || 0;
+            return balance === account.balance ? account : { ...account, balance };
+          }),
+        );
+      } else {
+        const linked = accountsPayable.find(
+          (item) => item.id === document.relatedEntityId,
+        );
+        if (!linked || ["Paga", "Cancelada"].includes(linked.status))
+          return false;
+        setAccountsPayable((current) =>
+          current.map((item) => {
+            if (item.id !== linked.id) return item;
+            const amount = updated.amount || 0;
+            return {
+              ...item,
+              description: updated.description,
+              supplier: updated.supplier || "Fornecedor a confirmar",
+              category: updated.expenseType || updated.category,
+              costCenter: updated.costCenter || "A classificar",
+              competenceMonth: updated.competenceMonth,
+              dueDate: updated.dueDate || item.dueDate,
+              amount,
+              finalAmount:
+                amount + item.interest + item.penalty - item.discount,
+              paymentMethod: updated.paymentMethod || "A definir",
+              bankAccountId: updated.bankAccountId || "",
+              recurrence: updated.recurrence || "Nenhuma",
+              documentNumber: updated.documentNumber || "",
+              notes: updated.notes || "Lançamento avulso.",
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        );
+      }
+    }
+
+    setDocuments((current) =>
+      current.map((item) => (item.id === id ? updated : item)),
     );
+    createAuditLog(
+      isManualLaunch && document.status === "Lançado"
+        ? "EDITAR_LANCAMENTO_AVULSO"
+        : "AJUSTAR_PRE_LANCAMENTO",
+      "Document",
+      id,
+      document.companyId,
+      document,
+      updated,
+    );
+    return true;
   };
 
   const createPayableFromDocument = (
@@ -1847,7 +2231,13 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       : Object.keys(updates).length
         ? (updates as Document)
         : undefined;
-    if (!document || document.relatedEntityId) return;
+    if (
+      !document ||
+      document.relatedEntityId ||
+      document.purpose === "VIEW_ONLY" ||
+      document.status === "Compartilhado"
+    )
+      return;
     const payableId = `ap-doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const payable: AccountPayable = {
       id: payableId,
@@ -1906,7 +2296,12 @@ export function BPOProvider({ children }: { children: ReactNode }) {
 
   const launchDocument = (id: string, updates: Partial<Document> = {}) => {
     const current = documents.find((item) => item.id === id);
-    if (!current) return;
+    if (
+      !current ||
+      current.purpose === "VIEW_ONLY" ||
+      current.status === "Compartilhado"
+    )
+      return;
     const document = { ...current, ...updates };
     if (document.entryType === "Transferência") {
       if (
@@ -2012,12 +2407,28 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   const submitDocumentForApproval = (
     id: string,
     updates: Partial<Document> = {},
+    recipientId?: string,
   ) => {
     const currentDocument = documents.find((item) => item.id === id);
     const document = currentDocument
       ? { ...currentDocument, ...updates }
       : undefined;
-    if (!document || document.status !== "Aguardando Análise") return;
+    const recipient = users.find(
+      (user) =>
+        user.id === recipientId &&
+        user.status === "ACTIVE" &&
+        user.role === "CLIENT" &&
+        user.companies?.includes(document?.companyId || ""),
+    );
+    if (
+      !document ||
+      document.status !== "Aguardando Análise" ||
+      document.purpose === "VIEW_ONLY" ||
+      document.companyId !== activeCompany?.id ||
+      !["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role) ||
+      !recipient
+    )
+      return false;
     const approval: Approval = {
       id: `apv-doc-${Date.now()}`,
       companyId: document.companyId,
@@ -2028,6 +2439,10 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       dueDate: document.dueDate || new Date().toISOString().slice(0, 10),
       requesterId: currentUser.id,
       requesterName: currentUser.name,
+      requesterRole: currentUser.role,
+      recipientId: recipient.id,
+      recipientName: recipient.name,
+      recipientRole: recipient.role as Approval["recipientRole"],
       dueDateApproval:
         document.dueDate || new Date().toISOString().slice(0, 10),
       status: "Pendente",
@@ -2039,7 +2454,16 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     setApprovals((prev) => [...prev, approval]);
     setDocuments((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, status: "Aguardando Aprovação" } : item,
+        item.id === id
+          ? {
+              ...item,
+              ...updates,
+              status: "Aguardando Aprovação",
+              recipientId: recipient.id,
+              recipientName: recipient.name,
+              recipientRole: recipient.role as Document["recipientRole"],
+            }
+          : item,
       ),
     );
     createAuditLog(
@@ -2051,15 +2475,99 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       approval,
     );
     addNotification(
-      "Lançamento para Aprovação",
-      `O pré-lançamento de "${document.name}" foi enviado ao cliente.`,
+      "Documento recebido do BPO",
+      `${currentUser.name} enviou "${document.name}" para sua aprovação.`,
       "ALERT",
+      recipient.id,
+      document.companyId,
     );
+    addNotification(
+      "Documento enviado para aprovação",
+      `O pré-lançamento de "${document.name}" foi enviado para ${recipient.name}.`,
+      "SUCCESS",
+      currentUser.id,
+      document.companyId,
+    );
+    return true;
   };
 
   const cancelDocument = (id: string) => {
-    setDocuments((prev) =>
-      prev.map((item) =>
+    const document = documents.find((item) => item.id === id);
+    if (
+      !document ||
+      document.companyId !== activeCompany?.id ||
+      document.status === "Cancelado" ||
+      document.purpose === "VIEW_ONLY" ||
+      document.status === "Compartilhado" ||
+      !["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role)
+    )
+      return false;
+
+    const isManualLaunch =
+      document.origin === "Manual" ||
+      document.mimeType === "application/x-manual-entry";
+    if (isManualLaunch && document.status === "Lançado") {
+      if (document.entryType === "Conta a Receber") {
+        const linked = accountsReceivable.find(
+          (item) => item.id === document.relatedEntityId,
+        );
+        if (!linked || linked.receivedAmount > 0) return false;
+        setAccountsReceivable((current) =>
+          current.map((item) =>
+            item.id === linked.id
+              ? {
+                  ...item,
+                  status: "Cancelado",
+                  updatedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        );
+      } else if (document.entryType === "Transferência") {
+        if (
+          !document.bankAccountId ||
+          !document.destinationBankAccountId ||
+          !bankAccounts.some(
+            (account) => account.id === document.bankAccountId,
+          ) ||
+          !bankAccounts.some(
+            (account) => account.id === document.destinationBankAccountId,
+          )
+        )
+          return false;
+        setBankAccounts((current) =>
+          current.map((account) =>
+            account.id === document.bankAccountId
+              ? { ...account, balance: account.balance + (document.amount || 0) }
+              : account.id === document.destinationBankAccountId
+                ? {
+                    ...account,
+                    balance: account.balance - (document.amount || 0),
+                  }
+                : account,
+          ),
+        );
+      } else {
+        const linked = accountsPayable.find(
+          (item) => item.id === document.relatedEntityId,
+        );
+        if (!linked || linked.status === "Paga") return false;
+        setAccountsPayable((current) =>
+          current.map((item) =>
+            item.id === linked.id
+              ? {
+                  ...item,
+                  status: "Cancelada",
+                  updatedAt: new Date().toISOString(),
+                }
+              : item,
+          ),
+        );
+      }
+    }
+
+    setDocuments((current) =>
+      current.map((item) =>
         item.id === id ? { ...item, status: "Cancelado" } : item,
       ),
     );
@@ -2070,7 +2578,24 @@ export function BPOProvider({ children }: { children: ReactNode }) {
           : item,
       ),
     );
-    createAuditLog("CANCELAR_PRE_LANCAMENTO", "Document", id);
+    createAuditLog(
+      isManualLaunch
+        ? "CANCELAR_LANCAMENTO_AVULSO"
+        : "CANCELAR_PRE_LANCAMENTO",
+      "Document",
+      id,
+      document.companyId,
+      document,
+      { ...document, status: "Cancelado" },
+    );
+    addNotification(
+      isManualLaunch ? "Lançamento avulso cancelado" : "Documento cancelado",
+      `O registro "${document.description || document.name}" foi cancelado.`,
+      "WARNING",
+      currentUser.id,
+      document.companyId,
+    );
+    return true;
   };
 
   const createStandaloneLaunch = (
@@ -2357,6 +2882,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         logout,
         switchCompany,
         hasPermission,
+        isApprovalVisibleToCurrentUser,
+        canDecideApproval,
         addMasterData,
         updateMasterData,
         deleteMasterData,

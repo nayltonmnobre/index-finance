@@ -174,6 +174,10 @@ export interface Approval {
   dueDate: string;
   requesterId: string;
   requesterName: string;
+  requesterRole?: UserRole;
+  recipientId?: string;
+  recipientName?: string;
+  recipientRole?: Extract<UserRole, "CLIENT" | "ACCOUNTANT">;
   dueDateApproval: string;
   status:
     | "Pendente"
@@ -220,12 +224,24 @@ export interface Document {
   uploadedAt: string;
   uploadedById: string;
   uploadedByName: string;
+  recipientId?: string;
+  recipientName?: string;
+  recipientRole?: Extract<UserRole, "CLIENT" | "ACCOUNTANT">;
+  sharedById?: string;
+  sharedByName?: string;
+  sharedByRole?: Extract<UserRole, "BPO_ADMIN" | "BPO_TEAM">;
+  sharedAt?: string;
   fileSize: string;
   mimeType: string;
   hash: string;
   relatedEntityId?: string; // e.g. payable or receivable ID
   status:
-    "Aguardando Análise" | "Aguardando Aprovação" | "Lançado" | "Cancelado";
+    | "Aguardando Análise"
+    | "Aguardando Aprovação"
+    | "Compartilhado"
+    | "Lançado"
+    | "Cancelado";
+  purpose?: "PROCESSING" | "VIEW_ONLY";
   signedUrl?: string;
   aiSummary?: string;
   extractedData?: Record<string, string>;

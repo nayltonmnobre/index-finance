@@ -44,6 +44,7 @@ export default function DashboardView({
     accountsReceivable,
     approvals,
     auditLogs,
+    isApprovalVisibleToCurrentUser,
   } = useBPOState();
 
   const [timeframe, setTimeframe] = useState<"7" | "15" | "30" | "90">("30");
@@ -71,7 +72,9 @@ export default function DashboardView({
     (ar) => ar.companyId === activeCompany.id,
   );
   const companyApprovals = approvals.filter(
-    (apv) => apv.companyId === activeCompany.id,
+    (apv) =>
+      apv.companyId === activeCompany.id &&
+      isApprovalVisibleToCurrentUser(apv),
   );
   const companyLogs = auditLogs.filter(
     (log) => log.companyId === activeCompany.id,

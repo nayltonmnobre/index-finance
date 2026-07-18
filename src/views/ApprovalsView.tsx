@@ -29,7 +29,8 @@ export default function ApprovalsView() {
     approvals,
     decideApproval,
     currentUser,
-    hasPermission,
+    isApprovalVisibleToCurrentUser,
+    canDecideApproval,
   } = useBPOState();
 
   const [activeTab, setActiveTab] = useState<"pending" | "history">("pending");
@@ -50,7 +51,9 @@ export default function ApprovalsView() {
   if (!activeCompany) return null;
 
   const companyApprovals = approvals.filter(
-    (a) => a.companyId === activeCompany.id,
+    (a) =>
+      a.companyId === activeCompany.id &&
+      isApprovalVisibleToCurrentUser(a),
   );
 
   const pendingApprovals = companyApprovals.filter(
@@ -59,11 +62,11 @@ export default function ApprovalsView() {
   const historyApprovals = companyApprovals.filter(
     (a) => a.status !== "Pendente",
   );
-  const decisionApproval = approvals.find(
+  const decisionApproval = companyApprovals.find(
     (approval) => approval.id === decisionApprovalId,
   );
   const decisionIsDocument = decisionApproval?.type === "DOCUMENTO";
-  const previewApproval = approvals.find(
+  const previewApproval = companyApprovals.find(
     (approval) => approval.id === previewApprovalId,
   );
 
@@ -103,8 +106,8 @@ export default function ApprovalsView() {
             Central de Aprovações
           </h2>
           <p className="text-zinc-500 text-xs font-sans">
-            Valide documentos e aprove pagamentos com segurança e
-            rastreabilidade.
+            Documentos aparecem somente para o BPO remetente e o destinatário
+            selecionado.
           </p>
         </div>
 
@@ -300,6 +303,15 @@ export default function ApprovalsView() {
                           ).toLocaleDateString("pt-BR")}
                         </strong>
                       </p>
+                      {apv.type === "DOCUMENTO" && apv.recipientName && (
+                        <p className="text-[10px] text-blue-600">
+                          Destinatário: {apv.recipientName} (
+                          {apv.recipientRole === "CLIENT"
+                            ? "Cliente"
+                            : "Contador"}
+                          )
+                        </p>
+                      )}
                     </div>
 
                     {/* Amount & Actions */}
@@ -319,11 +331,7 @@ export default function ApprovalsView() {
                         </span>
                       </div>
 
-                      {(
-                        apv.type === "DOCUMENTO"
-                          ? currentUser.role === "CLIENT"
-                          : hasPermission("approvals.approve")
-                      ) ? (
+                      {canDecideApproval(apv) ? (
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() =>
