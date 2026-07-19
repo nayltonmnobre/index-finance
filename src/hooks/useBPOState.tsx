@@ -306,7 +306,8 @@ interface BPOContextType {
   updateCompany: (
     id: string,
     updates: Partial<Omit<Company, "id" | "createdAt" | "tenantId">>,
-  ) => void;
+  ) => CompanyCreationResult;
+  deleteCompany: (id: string) => CompanyCreationResult;
   updateCompanyStatus: (id: string, status: Company["status"]) => void;
 
   addTeamMember: (data: Omit<User, "id">) => void;
@@ -345,6 +346,7 @@ interface BPOContextType {
       assignedToId?: string;
     },
   ) => void;
+  deleteSupportTicket: (ticketId: string) => boolean;
 }
 
 const BPOContext = createContext<BPOContextType | undefined>(undefined);
@@ -2619,30 +2621,145 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   const updateCompany = (
     id: string,
     updates: Partial<Omit<Company, "id" | "createdAt" | "tenantId">>,
-  ) => {
-    if (currentUser.role !== "BPO_ADMIN") return;
-    setCompanies((prev) =>
-      prev.map((company) => {
-        if (company.id !== id) return company;
-        const updated = {
-          ...company,
-          ...updates,
-          approvalLimit:
-            updates.approvalLimit === undefined
-              ? company.approvalLimit
-              : Number(updates.approvalLimit),
-        };
-        createAuditLog(
-          "ATUALIZAR_EMPRESA_CLIENTE",
-          "Company",
-          id,
-          id,
-          company,
-          updated,
+  ): CompanyCreationResult => {
+    if (currentUser.role !== "BPO_ADMIN") {
+      return {
+        success: false,
+        error: "Apenas administradores do BPO podem editar empresas.",
+      };
+    }
+
+    const existing = companies.find((company) => company.id === id);
+    if (!existing) {
+      return { success: false, error: "Empresa não encontrada." };
+    }
+    if (updates.clientModules && updates.clientModules.length === 0) {
+      return {
+        success: false,
+        error: "Selecione pelo menos um módulo para o acesso do cliente.",
+      };
+    }
+    if (updates.cnpj) {
+      const normalizedCnpj = updates.cnpj.replace(/\D/g, "");
+      if (
+        companies.some(
+          (company) =>
+            company.id !== id &&
+            company.cnpj.replace(/\D/g, "") === normalizedCnpj,
+        )
+      ) {
+        return { success: false, error: "Já existe uma empresa com este CNPJ." };
+      }
+    }
+
+    const updated: Company = {
+      ...existing,
+      ...updates,
+      clientModules: updates.clientModules
+        ? Array.from(new Set(updates.clientModules))
+        : existing.clientModules,
+      approvalLimit:
+        updates.approvalLimit === undefined
+          ? existing.approvalLimit
+          : Number(updates.approvalLimit),
+    };
+    setCompanies((previous) =>
+      previous.map((company) => (company.id === id ? updated : company)),
+    );
+    createAuditLog(
+      "ATUALIZAR_EMPRESA_CLIENTE",
+      "Company",
+      id,
+      id,
+      existing,
+      updated,
+    );
+    return { success: true };
+  };
+
+  const deleteCompany = (id: string): CompanyCreationResult => {
+    if (currentUser.role !== "BPO_ADMIN") {
+      return {
+        success: false,
+        error: "Apenas administradores do BPO podem excluir empresas.",
+      };
+    }
+
+    const company = companies.find((item) => item.id === id);
+    if (!company) {
+      return { success: false, error: "Empresa não encontrada." };
+    }
+
+    const companyBankAccountIds = new Set(
+      bankAccounts
+        .filter((account) => account.companyId === id)
+        .map((account) => account.id),
+    );
+    const remainingCompanies = companies.filter((item) => item.id !== id);
+
+    createAuditLog(
+      "EXCLUIR_EMPRESA_CLIENTE",
+      "Company",
+      id,
+      id,
+      company,
+      null,
+    );
+    setCompanies(remainingCompanies);
+    setBankAccounts((previous) =>
+      previous.filter((account) => account.companyId !== id),
+    );
+    setMasterData((previous) =>
+      previous.filter((item) => item.companyId !== id),
+    );
+    setAccountsPayable((previous) =>
+      previous.filter((account) => account.companyId !== id),
+    );
+    setAccountsReceivable((previous) =>
+      previous.filter((account) => account.companyId !== id),
+    );
+    setApprovals((previous) =>
+      previous.filter((approval) => approval.companyId !== id),
+    );
+    setDocuments((previous) =>
+      previous.filter((document) => document.companyId !== id),
+    );
+    setReports((previous) =>
+      previous.filter((report) => report.companyId !== id),
+    );
+    setNotifications((previous) =>
+      previous.filter((notification) => notification.companyId !== id),
+    );
+    setSupportTickets((previous) =>
+      previous.filter((ticket) => ticket.companyId !== id),
+    );
+    setStatementItems((previous) =>
+      Object.fromEntries(
+        Object.entries(previous).filter(
+          ([bankAccountId]) => !companyBankAccountIds.has(bankAccountId),
+        ),
+      ),
+    );
+    setUsers((previous) =>
+      previous.flatMap((user) => {
+        if (!user.companies?.includes(id)) return [user];
+        const remainingAccess = user.companies.filter(
+          (companyId) => companyId !== id,
         );
-        return updated;
+        if (
+          remainingAccess.length === 0 &&
+          ["CLIENT", "ACCOUNTANT"].includes(user.role)
+        ) {
+          return [];
+        }
+        return [{ ...user, companies: remainingAccess }];
       }),
     );
+    if (activeCompanyId === id) {
+      setActiveCompanyId(remainingCompanies[0]?.id || "");
+    }
+
+    return { success: true };
   };
 
   // --- TEAM MANAGEMENT ---
@@ -3499,6 +3616,36 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const deleteSupportTicket = (ticketId: string): boolean => {
+    if (currentUser.role !== "BPO_ADMIN") return false;
+
+    const ticket = supportTickets.find((item) => item.id === ticketId);
+    if (!ticket) return false;
+
+    createAuditLog(
+      "EXCLUIR_REQUERIMENTO_BPO",
+      "SupportTicket",
+      ticketId,
+      ticket.companyId,
+      {
+        protocol: ticket.protocol,
+        subject: ticket.subject,
+        requesterId: ticket.requesterId,
+        status: ticket.status,
+        messageCount: ticket.messages.length,
+        attachmentCount: ticket.messages.reduce(
+          (total, message) => total + (message.attachments?.length || 0),
+          0,
+        ),
+      },
+      null,
+    );
+    setSupportTickets((previous) =>
+      previous.filter((item) => item.id !== ticketId),
+    );
+    return true;
+  };
+
   return (
     <BPOContext.Provider
       value={{
@@ -3557,6 +3704,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         generateReport,
         addCompany,
         updateCompany,
+        deleteCompany,
         updateCompanyStatus,
         addTeamMember,
         updateTeamMemberPermissions,
@@ -3566,6 +3714,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         createSupportTicket,
         addSupportMessage,
         updateSupportTicket,
+        deleteSupportTicket,
       }}
     >
       {children}

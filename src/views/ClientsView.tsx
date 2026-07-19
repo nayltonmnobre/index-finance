@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
 import { BankAccount, ClientModule, Company } from "../types";
 import {
@@ -21,6 +21,9 @@ import {
   Award,
   DollarSign,
   Pencil,
+  Settings2,
+  Trash2,
+  X,
 } from "lucide-react";
 
 const DEFAULT_CATEGORIES = "Aluguel\nEnergia\nMarketing\nFornecedores";
@@ -46,6 +49,7 @@ export default function ClientsView() {
     users,
     addCompany,
     updateCompany,
+    deleteCompany,
     updateCompanyStatus,
     currentUser,
     activeTenant,
@@ -53,7 +57,11 @@ export default function ClientsView() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pageMessage, setPageMessage] = useState("");
+  const [pageError, setPageError] = useState("");
+  const modulesSectionRef = useRef<HTMLDivElement>(null);
 
   // Form Fields
   const [corporateName, setCorporateName] = useState("");
@@ -181,8 +189,16 @@ export default function ClientsView() {
       approvalLimit: Number(approvalLimit),
       clientModules: selectedClientModules,
     };
+    const wasEditing = Boolean(editingCompanyId);
     if (editingCompanyId) {
-      updateCompany(editingCompanyId, { ...data, status: companyStatus });
+      const result = updateCompany(editingCompanyId, {
+        ...data,
+        status: companyStatus,
+      });
+      if (!result.success) {
+        setFormError(result.error || "Não foi possível atualizar a empresa.");
+        return;
+      }
     } else {
       const result = addCompany(data, {
         initialBankAccount: {
@@ -210,9 +226,15 @@ export default function ClientsView() {
     resetForm();
     setEditingCompanyId(null);
     setIsFormOpen(false);
+    setPageError("");
+    setPageMessage(
+      wasEditing
+        ? "Empresa e módulos de acesso atualizados com sucesso."
+        : "Empresa criada com sucesso.",
+    );
   };
 
-  const openEdit = (company: Company) => {
+  const openEdit = (company: Company, focusModules = false) => {
     setEditingCompanyId(company.id);
     setCorporateName(company.corporateName);
     setTradeName(company.tradeName);
@@ -229,6 +251,16 @@ export default function ClientsView() {
     setSelectedClientModules(getCompanyClientModules(company));
     setFormError("");
     setIsFormOpen(true);
+    if (focusModules) {
+      window.setTimeout(
+        () =>
+          modulesSectionRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          }),
+        0,
+      );
+    }
   };
   const openNew = () => {
     setEditingCompanyId(null);
@@ -238,6 +270,20 @@ export default function ClientsView() {
 
   const handleStatusChange = (id: string, status: Company["status"]) => {
     updateCompanyStatus(id, status);
+  };
+
+  const handleDeleteCompany = () => {
+    if (!companyToDelete) return;
+    const deletedName = companyToDelete.tradeName;
+    const result = deleteCompany(companyToDelete.id);
+    if (!result.success) {
+      setPageMessage("");
+      setPageError(result.error || "Não foi possível excluir a empresa.");
+      return;
+    }
+    setCompanyToDelete(null);
+    setPageError("");
+    setPageMessage(`A empresa “${deletedName}” e seus dados foram excluídos.`);
   };
 
   const toggleClientModule = (moduleId: ClientModule) => {
@@ -272,6 +318,33 @@ export default function ClientsView() {
           <Plus className="h-4 w-4" /> Integrar Novo Cliente
         </button>
       </div>
+
+      {pageMessage && (
+        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
+          <span>{pageMessage}</span>
+          <button
+            type="button"
+            onClick={() => setPageMessage("")}
+            aria-label="Fechar mensagem"
+            className="cursor-pointer text-emerald-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+      {pageError && (
+        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800">
+          <span>{pageError}</span>
+          <button
+            type="button"
+            onClick={() => setPageError("")}
+            aria-label="Fechar erro"
+            className="cursor-pointer text-red-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Creation form modal */}
       {isFormOpen && (
@@ -486,7 +559,10 @@ export default function ClientsView() {
                 </div>
               </div>
 
-              <div className="border-t border-zinc-100 pt-3 space-y-3">
+              <div
+                ref={modulesSectionRef}
+                className="border-t border-zinc-100 pt-3 space-y-3 scroll-mt-4"
+              >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <span className="font-bold text-zinc-700 block">
@@ -786,6 +862,56 @@ export default function ClientsView() {
         </div>
       )}
 
+      {companyToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-company-title"
+            className="w-full max-w-md rounded-xl border border-red-200 bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-red-100 p-2 text-red-700">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3
+                  id="delete-company-title"
+                  className="text-base font-black text-zinc-900"
+                >
+                  Excluir empresa definitivamente?
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                  A empresa <strong>{companyToDelete.tradeName}</strong> será
+                  removida com contas bancárias, cadastros, lançamentos,
+                  aprovações, documentos, relatórios e solicitações vinculadas.
+                  Usuários que também acessam outras empresas serão preservados.
+                </p>
+                <p className="mt-2 text-xs font-bold text-red-700">
+                  Esta ação não pode ser desfeita sem um backup.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCompanyToDelete(null)}
+                className="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCompany}
+                className="cursor-pointer rounded-lg bg-red-700 px-4 py-2 text-xs font-bold text-white hover:bg-red-800"
+              >
+                Excluir empresa e dados
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* List Search */}
       <div className="bg-white rounded-xl border border-zinc-200 shadow-xs p-4">
         <div className="relative w-full md:w-96 font-sans">
@@ -866,15 +992,42 @@ export default function ClientsView() {
                   {ALL_CLIENT_MODULES.length}
                 </span>
               </div>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {CLIENT_MODULE_OPTIONS.filter((module) =>
+                  getCompanyClientModules(company).includes(module.id),
+                ).map((module) => (
+                  <span
+                    key={module.id}
+                    className="rounded-md border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-700"
+                  >
+                    {module.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* Actions / Status switch */}
-            <div className="space-y-2 w-full md:w-36 shrink-0 text-right">
+            <div className="space-y-2 w-full md:w-44 shrink-0 text-right">
               <button
                 onClick={() => openEdit(company)}
                 className="w-full p-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Pencil className="h-3.5 w-3.5" /> Editar
+                <Pencil className="h-3.5 w-3.5" /> Editar cadastro
+              </button>
+              <button
+                onClick={() => openEdit(company, true)}
+                className="w-full p-2 bg-violet-50 text-violet-700 border border-violet-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Settings2 className="h-3.5 w-3.5" /> Gerenciar módulos
+              </button>
+              <button
+                onClick={() => {
+                  setPageError("");
+                  setCompanyToDelete(company);
+                }}
+                className="w-full p-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Excluir empresa
               </button>
               <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
                 Status do Cliente

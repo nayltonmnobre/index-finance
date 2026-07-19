@@ -55,7 +55,6 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  avatar?: string;
   status: "ACTIVE" | "INACTIVE";
   title?: string;
   companies?: string[]; // Allowed company IDs

@@ -98,7 +98,6 @@ export default function TeamView() {
       role,
       title: title || defaultTitles[role],
       status: 'ACTIVE',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       companies: role === 'BPO_ADMIN' ? companies.map(company => company.id) : selectedCompanyIds,
       permissions: permissionsByRole[role]
     });
@@ -292,7 +291,6 @@ export default function TeamView() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <img src={user.avatar} className="h-9 w-9 rounded-full object-cover border border-zinc-200 shrink-0" alt={user.name} />
                       <div className="space-y-0.5">
                         <h4 className="text-xs font-bold text-zinc-900 leading-tight">{user.name}</h4>
                         <span className="text-[10px] text-zinc-400 block font-normal">{user.title || 'Membro do Time'}</span>

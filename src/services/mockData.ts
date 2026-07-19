@@ -129,7 +129,6 @@ export const INITIAL_USERS: User[] = [
     name: 'Naylton Nobre',
     email: 'nayltonnobre@gmail.com',
     role: 'CLIENT',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
     status: 'ACTIVE',
     title: 'Diretor Financeiro Alfa',
     companies: ['c-101'],

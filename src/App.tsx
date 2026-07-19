@@ -736,11 +736,6 @@ function BPOWorkspaceShell() {
           <div
             className={`flex items-center gap-3 p-2.5 ${sidebarCollapsed ? "md:justify-center md:gap-0 md:p-2" : ""} bg-white/5 rounded-lg border border-white/10`}
           >
-            <img
-              src={currentUser.avatar}
-              className={`${sidebarCollapsed ? "md:hidden" : ""} h-8 w-8 rounded-full object-cover border border-white/20 shrink-0`}
-              alt={currentUser.name}
-            />
             <div
               className={`${sidebarCollapsed ? "md:hidden" : ""} space-y-0.5 truncate grow`}
             >
@@ -817,11 +812,6 @@ function BPOWorkspaceShell() {
                   {currentUser.role.replace(/_/g, " ")}
                 </span>
               </div>
-              <img
-                src={currentUser.avatar}
-                className="h-8 w-8 rounded-full object-cover border border-zinc-200"
-                alt={currentUser.name}
-              />
             </div>
           </div>
         </header>
