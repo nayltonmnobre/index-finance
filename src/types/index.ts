@@ -5,6 +5,15 @@
 
 export type UserRole = "BPO_ADMIN" | "BPO_TEAM" | "CLIENT" | "ACCOUNTANT";
 
+export type ClientModule =
+  | "dashboard"
+  | "approvals"
+  | "documents"
+  | "cash-flow"
+  | "reports"
+  | "support"
+  | "bakery-cash";
+
 export type CompanyStatus =
   | "Em dia"
   | "OK"
@@ -38,6 +47,7 @@ export interface Company {
   createdAt: string;
   status: CompanyStatus;
   approvalLimit: number; // Max amount before requiring multi-level BPO admin approval
+  clientModules?: ClientModule[]; // Modules enabled in the client workspace for this company
 }
 
 export interface User {
@@ -334,8 +344,23 @@ export interface ReportRecord {
   generatedAt: string;
   generatedById: string;
   generatedByName: string;
-  fileUrl: string;
+  format?: ReportExportFormat;
+  fileName?: string;
+  mimeType?: string;
+  fileContent?: string;
+  fileUrl?: string;
   fileSize: string;
+}
+
+export type ReportExportFormat = "PDF" | "CSV";
+
+export interface ReportGenerationOptions {
+  format: ReportExportFormat;
+  startDate?: string;
+  endDate?: string;
+  bankAccountId?: string;
+  category?: string;
+  costCenter?: string;
 }
 
 export type SupportTicketStatus =

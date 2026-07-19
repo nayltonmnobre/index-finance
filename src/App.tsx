@@ -3,8 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { BPOProvider, useBPOState } from "./hooks/useBPOState";
+import { ClientModule } from "./types";
+import {
+  ALL_CLIENT_MODULES,
+  getCompanyClientModules,
+} from "./config/clientModules";
 import idexLogo from "../assets/idex-finance-logo-transparent.png";
 
 // View Imports
@@ -26,6 +31,7 @@ import AuditLogsView from "./views/AuditLogsView";
 import BackupView from "./views/BackupView";
 import SupportRequestsView from "./views/SupportRequestsView";
 import ServiceDeskView from "./views/ServiceDeskView";
+import BakeryCashView from "./views/BakeryCashView";
 
 // Icon Imports
 import {
@@ -55,6 +61,7 @@ import {
   PanelLeftOpen,
   MessageSquareText,
   Headphones,
+  Store,
 } from "lucide-react";
 
 type ViewType =
@@ -74,6 +81,7 @@ type ViewType =
   | "audit-logs"
   | "backup"
   | "support"
+  | "bakery-cash"
   | "service-desk";
 
 function BPOWorkspaceShell() {
@@ -92,8 +100,17 @@ function BPOWorkspaceShell() {
     logout,
   } = useBPOState();
 
+  const enabledClientModules = getCompanyClientModules(activeCompany);
+  const isClientViewAllowed = (view: ViewType) =>
+    currentUser.role !== "CLIENT" ||
+    (ALL_CLIENT_MODULES.includes(view as ClientModule) &&
+      enabledClientModules.includes(view as ClientModule));
   const getDefaultView = (role: string): ViewType =>
-    role === "BPO_ADMIN" ? "operations-center" : "dashboard";
+    role === "BPO_ADMIN"
+      ? "operations-center"
+      : role === "CLIENT"
+        ? enabledClientModules[0] || "dashboard"
+        : "dashboard";
 
   const [activeView, setActiveView] = useState<ViewType>(() =>
     getDefaultView(currentUser.role),
@@ -107,6 +124,12 @@ function BPOWorkspaceShell() {
   const [bpoInCompanyContext, setBpoInCompanyContext] = useState(false);
   const isBpoGlobalMode =
     currentUser.role === "BPO_ADMIN" && !bpoInCompanyContext;
+
+  useEffect(() => {
+    if (currentUser.role === "CLIENT" && !isClientViewAllowed(activeView)) {
+      setActiveView(enabledClientModules[0] || "dashboard");
+    }
+  }, [activeCompany?.id, activeCompany?.clientModules, activeView, currentUser.role]);
 
   if (!activeCompany) {
     return (
@@ -234,6 +257,13 @@ function BPOWorkspaceShell() {
       view: "support" as const,
       permission: null,
     },
+    {
+      id: "bakery-cash",
+      label: "Caixa Padaria",
+      icon: Store,
+      view: "bakery-cash" as const,
+      permission: null,
+    },
   ];
   const navigationOrder = [
     "dashboard",
@@ -247,6 +277,7 @@ function BPOWorkspaceShell() {
     "reconciliation",
     "reports",
     "master-data",
+    "bakery-cash",
     "support",
   ];
   const orderedNavigationItems = [...navigationItems].sort(
@@ -298,9 +329,10 @@ function BPOWorkspaceShell() {
 
   // Map view components
   const renderActiveView = () => {
+    if (!isClientViewAllowed(activeView)) return null;
     switch (activeView) {
       case "dashboard":
-        return <DashboardView onNavigate={setActiveView} />;
+        return <DashboardView onNavigate={handleSwitchView} />;
       case "operations-center":
         return (
           <OperationsCenter
@@ -350,6 +382,8 @@ function BPOWorkspaceShell() {
         return <BackupView />;
       case "support":
         return <SupportRequestsView />;
+      case "bakery-cash":
+        return <BakeryCashView />;
       case "service-desk":
         return <ServiceDeskView />;
       default:
@@ -358,6 +392,7 @@ function BPOWorkspaceShell() {
   };
 
   const handleSwitchView = (view: ViewType) => {
+    if (!isClientViewAllowed(view)) return;
     setActiveView(view);
     setMobileMenuOpen(false);
     // Returning to the operations center exits the single-company workspace back to the global BPO view.
@@ -538,6 +573,7 @@ function BPOWorkspaceShell() {
               if (item.id === "operations-center") return null;
               if (item.permission && !hasPermission(item.permission))
                 return null;
+              if (!isClientViewAllowed(item.view)) return null;
               if (
                 item.id === "support" &&
                 !["CLIENT", "ACCOUNTANT"].includes(currentUser.role)
@@ -855,8 +891,11 @@ function BPOWorkspaceShell() {
             >
               Marcar todas como lidas
             </button>
-            <span className="text-[10px] text-zinc-400 font-mono">
-              Real-time habilitado
+            <span
+              className="text-[10px] text-amber-700 font-mono"
+              title="Os dados deste ambiente ainda ficam somente neste navegador."
+            >
+              Dados locais · sem sincronização
             </span>
           </div>
         </div>

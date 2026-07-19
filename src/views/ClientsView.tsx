@@ -5,29 +5,50 @@
 
 import React, { useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
-import { Company, Tenant } from "../types";
+import { BankAccount, ClientModule, Company } from "../types";
+import {
+  ALL_CLIENT_MODULES,
+  CLIENT_MODULE_OPTIONS,
+  getCompanyClientModules,
+} from "../config/clientModules";
 import {
   Plus,
-  Building2,
   Layers,
   User,
   Mail,
   ShieldCheck,
   Search,
   Award,
-  Calendar,
   DollarSign,
   Pencil,
 } from "lucide-react";
 
+const DEFAULT_CATEGORIES = "Aluguel\nEnergia\nMarketing\nFornecedores";
+const DEFAULT_COST_CENTERS = "Administrativo\nComercial\nOperacional";
+const DEFAULT_PAYMENT_METHODS = "PIX\nTransferência\nBoleto\nDébito automático";
+const DEFAULT_DOCUMENT_TYPES =
+  "Nota fiscal\nBoleto\nComprovante\nRecibo\nContrato\nExtrato\nOutros";
+
+const parseInitialRecords = (value: string) =>
+  Array.from(
+    new Map(
+      value
+        .split(/\r?\n|,|;/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .map((item) => [item.toLocaleLowerCase("pt-BR"), item]),
+    ).values(),
+  );
+
 export default function ClientsView() {
   const {
-    tenants,
     companies,
+    users,
     addCompany,
     updateCompany,
     updateCompanyStatus,
     currentUser,
+    activeTenant,
   } = useBPOState();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -47,6 +68,30 @@ export default function ClientsView() {
   const [approvalLimit, setApprovalLimit] = useState<string>("10000");
   const [companyStatus, setCompanyStatus] =
     useState<Company["status"]>("Implantação");
+  const [bpoResponsibleId, setBpoResponsibleId] = useState(currentUser.id);
+  const [bankName, setBankName] = useState("");
+  const [bankAgency, setBankAgency] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankAccountType, setBankAccountType] =
+    useState<BankAccount["type"]>("Corrente");
+  const [initialBalance, setInitialBalance] = useState("0");
+  const [initialSuppliers, setInitialSuppliers] = useState("");
+  const [initialCustomers, setInitialCustomers] = useState("");
+  const [initialCategories, setInitialCategories] =
+    useState(DEFAULT_CATEGORIES);
+  const [initialCostCenters, setInitialCostCenters] = useState(
+    DEFAULT_COST_CENTERS,
+  );
+  const [initialPaymentMethods, setInitialPaymentMethods] = useState(
+    DEFAULT_PAYMENT_METHODS,
+  );
+  const [initialDocumentTypes, setInitialDocumentTypes] = useState(
+    DEFAULT_DOCUMENT_TYPES,
+  );
+  const [selectedClientModules, setSelectedClientModules] = useState<
+    ClientModule[]
+  >([...ALL_CLIENT_MODULES]);
+  const [formError, setFormError] = useState("");
 
   if (currentUser.role !== "BPO_ADMIN") {
     return (
@@ -63,33 +108,13 @@ export default function ClientsView() {
       c.corporateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.cnpj.includes(searchTerm),
   );
+  const bpoUsers = users.filter(
+    (user) =>
+      user.status === "ACTIVE" &&
+      (user.role === "BPO_ADMIN" || user.role === "BPO_TEAM"),
+  );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!corporateName || !tradeName || !cnpj || !segment) {
-      alert("Por favor, preencha todos os campos obrigatórios.");
-      return;
-    }
-
-    const data = {
-      tenantId: "t-1111-1111", // default to main simulated tenant
-      cnpj,
-      corporateName,
-      tradeName,
-      segment,
-      taxRegime,
-      accountantName,
-      accountantEmail,
-      primaryContactName,
-      primaryContactEmail,
-      bpoResponsibleId: "u-bpo-analyst",
-      approvalLimit: Number(approvalLimit),
-    };
-    if (editingCompanyId)
-      updateCompany(editingCompanyId, { ...data, status: companyStatus });
-    else addCompany(data);
-
-    // Reset Form
+  const resetForm = () => {
     setCorporateName("");
     setTradeName("");
     setCnpj("");
@@ -101,6 +126,88 @@ export default function ClientsView() {
     setPrimaryContactEmail("");
     setApprovalLimit("10000");
     setCompanyStatus("Implantação");
+    setBpoResponsibleId(currentUser.id);
+    setBankName("");
+    setBankAgency("");
+    setBankAccountNumber("");
+    setBankAccountType("Corrente");
+    setInitialBalance("0");
+    setInitialSuppliers("");
+    setInitialCustomers("");
+    setInitialCategories(DEFAULT_CATEGORIES);
+    setInitialCostCenters(DEFAULT_COST_CENTERS);
+    setInitialPaymentMethods(DEFAULT_PAYMENT_METHODS);
+    setInitialDocumentTypes(DEFAULT_DOCUMENT_TYPES);
+    setSelectedClientModules([...ALL_CLIENT_MODULES]);
+    setFormError("");
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    if (
+      !corporateName ||
+      !tradeName ||
+      !cnpj ||
+      !segment ||
+      !primaryContactName ||
+      !primaryContactEmail ||
+      !bpoResponsibleId
+    ) {
+      setFormError("Preencha todos os campos obrigatórios.");
+      return;
+    }
+    if (Boolean(accountantName.trim()) !== Boolean(accountantEmail.trim())) {
+      setFormError("Informe o nome e o e-mail do contador, ou deixe ambos vazios.");
+      return;
+    }
+    if (selectedClientModules.length === 0) {
+      setFormError("Selecione pelo menos um módulo para o acesso do cliente.");
+      return;
+    }
+
+    const data = {
+      tenantId: activeTenant?.id || "t-1111-1111",
+      cnpj,
+      corporateName,
+      tradeName,
+      segment,
+      taxRegime,
+      accountantName,
+      accountantEmail,
+      primaryContactName,
+      primaryContactEmail,
+      bpoResponsibleId,
+      approvalLimit: Number(approvalLimit),
+      clientModules: selectedClientModules,
+    };
+    if (editingCompanyId) {
+      updateCompany(editingCompanyId, { ...data, status: companyStatus });
+    } else {
+      const result = addCompany(data, {
+        initialBankAccount: {
+          bankName,
+          agency: bankAgency,
+          accountNumber: bankAccountNumber,
+          type: bankAccountType,
+          balance: Number(initialBalance),
+        },
+        masterData: {
+          SUPPLIER: parseInitialRecords(initialSuppliers),
+          CUSTOMER: parseInitialRecords(initialCustomers),
+          CATEGORY: parseInitialRecords(initialCategories),
+          COST_CENTER: parseInitialRecords(initialCostCenters),
+          PAYMENT_METHOD: parseInitialRecords(initialPaymentMethods),
+          DOCUMENT_TYPE: parseInitialRecords(initialDocumentTypes),
+        },
+      });
+      if (!result.success) {
+        setFormError(result.error || "Não foi possível cadastrar a empresa.");
+        return;
+      }
+    }
+
+    resetForm();
     setEditingCompanyId(null);
     setIsFormOpen(false);
   };
@@ -118,26 +225,27 @@ export default function ClientsView() {
     setPrimaryContactEmail(company.primaryContactEmail);
     setApprovalLimit(String(company.approvalLimit));
     setCompanyStatus(company.status);
+    setBpoResponsibleId(company.bpoResponsibleId);
+    setSelectedClientModules(getCompanyClientModules(company));
+    setFormError("");
     setIsFormOpen(true);
   };
   const openNew = () => {
     setEditingCompanyId(null);
-    setCorporateName("");
-    setTradeName("");
-    setCnpj("");
-    setSegment("");
-    setTaxRegime("Simples Nacional");
-    setAccountantName("");
-    setAccountantEmail("");
-    setPrimaryContactName("");
-    setPrimaryContactEmail("");
-    setApprovalLimit("10000");
-    setCompanyStatus("Implantação");
+    resetForm();
     setIsFormOpen(true);
   };
 
   const handleStatusChange = (id: string, status: Company["status"]) => {
     updateCompanyStatus(id, status);
+  };
+
+  const toggleClientModule = (moduleId: ClientModule) => {
+    setSelectedClientModules((current) =>
+      current.includes(moduleId)
+        ? current.filter((id) => id !== moduleId)
+        : [...current, moduleId],
+    );
   };
 
   return (
@@ -168,7 +276,7 @@ export default function ClientsView() {
       {/* Creation form modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans text-xs">
-          <div className="bg-white rounded-xl border border-zinc-200 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-xl border border-zinc-200 shadow-2xl max-w-4xl max-h-[calc(100vh-2rem)] w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
             <div className="p-5 border-b border-zinc-100 bg-gradient-to-r from-[#0B2C52] to-[#C8102E] text-white flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold">
@@ -179,7 +287,7 @@ export default function ClientsView() {
                 <p className="text-[10px] text-[#F2D3A0]">
                   {editingCompanyId
                     ? "Atualize todas as informações cadastrais e operacionais."
-                    : "Gera um ambiente de dados isolado e parametriza os limites do BPO."}
+                    : "Provisiona a empresa, acessos, banco e cadastros iniciais em uma única operação."}
                 </p>
               </div>
               <button
@@ -193,7 +301,10 @@ export default function ClientsView() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form
+              onSubmit={handleSubmit}
+              className="p-6 space-y-4 overflow-y-auto"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-zinc-500 uppercase block">
@@ -283,10 +394,36 @@ export default function ClientsView() {
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  Responsável BPO *
+                </label>
+                <select
+                  required
+                  value={bpoResponsibleId}
+                  onChange={(e) => setBpoResponsibleId(e.target.value)}
+                  className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer text-xs"
+                >
+                  <option value="">Selecione o responsável</option>
+                  {bpoUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name} — {user.title || "Equipe BPO"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="border-t border-zinc-100 pt-3 space-y-3">
                 <span className="font-bold text-zinc-700 block">
                   Contatos de Referência
                 </span>
+                {!editingCompanyId && (
+                  <p className="text-[10px] text-zinc-500">
+                    O contato principal receberá um usuário de cliente. Quando
+                    informado, o contador também receberá um usuário próprio.
+                    E-mails já cadastrados serão apenas vinculados à nova empresa.
+                  </p>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -295,6 +432,7 @@ export default function ClientsView() {
                     </label>
                     <input
                       type="text"
+                      required
                       placeholder="Nome do cliente"
                       className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
                       value={primaryContactName}
@@ -308,6 +446,7 @@ export default function ClientsView() {
                     </label>
                     <input
                       type="email"
+                      required
                       placeholder="cliente@email.com"
                       className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
                       value={primaryContactEmail}
@@ -323,6 +462,7 @@ export default function ClientsView() {
                     </label>
                     <input
                       type="text"
+                      required={Boolean(accountantEmail)}
                       placeholder="Nome do contador"
                       className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
                       value={accountantName}
@@ -336,6 +476,7 @@ export default function ClientsView() {
                     </label>
                     <input
                       type="email"
+                      required={Boolean(accountantName)}
                       placeholder="contador@email.com"
                       className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
                       value={accountantEmail}
@@ -344,6 +485,250 @@ export default function ClientsView() {
                   </div>
                 </div>
               </div>
+
+              <div className="border-t border-zinc-100 pt-3 space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <span className="font-bold text-zinc-700 block">
+                      Módulos do Acesso Cliente
+                    </span>
+                    <p className="text-[10px] text-zinc-500">
+                      A configuração é aplicada por empresa e pode ser alterada
+                      posteriormente.
+                    </p>
+                  </div>
+                  <label className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-bold text-zinc-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={ALL_CLIENT_MODULES.every((moduleId) =>
+                        selectedClientModules.includes(moduleId),
+                      )}
+                      onChange={(event) =>
+                        setSelectedClientModules(
+                          event.target.checked ? [...ALL_CLIENT_MODULES] : [],
+                        )
+                      }
+                      className="accent-[#C8102E]"
+                    />
+                    Selecionar todos
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {CLIENT_MODULE_OPTIONS.map((module) => {
+                    const selected = selectedClientModules.includes(module.id);
+                    return (
+                      <label
+                        key={module.id}
+                        className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                          selected
+                            ? "border-[#C8102E]/40 bg-red-50/50"
+                            : "border-zinc-200 bg-zinc-50/50 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleClientModule(module.id)}
+                          className="mt-0.5 accent-[#C8102E]"
+                        />
+                        <span>
+                          <span className="block font-bold text-zinc-800">
+                            {module.label}
+                          </span>
+                          <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">
+                            {module.description}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] font-semibold text-zinc-500">
+                  {selectedClientModules.length} de {ALL_CLIENT_MODULES.length}{" "}
+                  módulos selecionados.
+                </p>
+              </div>
+
+              {!editingCompanyId && (
+                <>
+                  <div className="border-t border-zinc-100 pt-3 space-y-3">
+                    <div>
+                      <span className="font-bold text-zinc-700 block">
+                        Conta Bancária Inicial
+                      </span>
+                      <p className="text-[10px] text-zinc-500">
+                        Cadastre uma conta real da empresa; nenhuma conta fictícia
+                        será criada.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Banco / Instituição *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ex: Banco do Brasil"
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                            Agência *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="0001"
+                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                            value={bankAgency}
+                            onChange={(e) => setBankAgency(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                            Conta *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="12345-6"
+                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                            value={bankAccountNumber}
+                            onChange={(e) =>
+                              setBankAccountNumber(e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Tipo de conta
+                        </label>
+                        <select
+                          value={bankAccountType}
+                          onChange={(e) =>
+                            setBankAccountType(
+                              e.target.value as BankAccount["type"],
+                            )
+                          }
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                        >
+                          <option value="Corrente">Corrente</option>
+                          <option value="Poupança">Poupança</option>
+                          <option value="Investimento">Investimento</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Saldo inicial (R$)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          required
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                          value={initialBalance}
+                          onChange={(e) => setInitialBalance(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-zinc-100 pt-3 space-y-3">
+                    <div>
+                      <span className="font-bold text-zinc-700 block">
+                        Cadastros Iniciais
+                      </span>
+                      <p className="text-[10px] text-zinc-500">
+                        Informe um item por linha. Os cadastros poderão ser
+                        complementados depois no módulo Cadastros.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Fornecedores iniciais
+                        </label>
+                        <textarea
+                          rows={4}
+                          placeholder={"Fornecedor Alfa\nFornecedor Beta"}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          value={initialSuppliers}
+                          onChange={(e) => setInitialSuppliers(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Clientes iniciais
+                        </label>
+                        <textarea
+                          rows={4}
+                          placeholder={"Cliente Alfa\nCliente Beta"}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          value={initialCustomers}
+                          onChange={(e) => setInitialCustomers(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Categorias
+                        </label>
+                        <textarea
+                          rows={4}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          value={initialCategories}
+                          onChange={(e) => setInitialCategories(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Centros de custo
+                        </label>
+                        <textarea
+                          rows={4}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          value={initialCostCenters}
+                          onChange={(e) => setInitialCostCenters(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Formas de pagamento
+                        </label>
+                        <textarea
+                          rows={4}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          value={initialPaymentMethods}
+                          onChange={(e) =>
+                            setInitialPaymentMethods(e.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Tipos de documento
+                        </label>
+                        <textarea
+                          rows={4}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          value={initialDocumentTypes}
+                          onChange={(e) =>
+                            setInitialDocumentTypes(e.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {editingCompanyId && (
                 <div className="space-y-1">
@@ -367,6 +752,15 @@ export default function ClientsView() {
                 </div>
               )}
 
+              {formError && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                >
+                  {formError}
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4 mt-6">
                 <button
                   type="button"
@@ -384,7 +778,7 @@ export default function ClientsView() {
                 >
                   {editingCompanyId
                     ? "Salvar todas as alterações"
-                    : "Ativar Empresa e Banco"}
+                    : "Criar empresa completa"}
                 </button>
               </div>
             </form>
@@ -463,6 +857,13 @@ export default function ClientsView() {
               <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100">
                 <span className="text-zinc-400">
                   Contador: {company.accountantName}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-100">
+                <span className="text-zinc-400">Módulos do cliente</span>
+                <span className="font-bold text-zinc-700">
+                  {getCompanyClientModules(company).length}/
+                  {ALL_CLIENT_MODULES.length}
                 </span>
               </div>
             </div>

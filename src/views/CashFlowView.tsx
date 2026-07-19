@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
+import { downloadReportFile } from "../services/reportFiles";
 import {
   BarChart3,
   TableProperties,
@@ -261,12 +262,41 @@ export default function CashFlowView() {
   const tableRows = getGroupedPeriods();
 
   const handleExport = () => {
-    const filterSummary = `Conta: ${selectedAccount}, Categoria: ${selectedCategory}, Centro de Custo: ${selectedCostCenter}`;
-    generateReport(
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let exportStart = customStart;
+    let exportEnd = customEnd;
+    if (periodRange === "MONTH") {
+      exportStart = `${today.toISOString().slice(0, 7)}-01`;
+      exportEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        .toISOString()
+        .slice(0, 10);
+    } else if (periodRange !== "CUSTOM") {
+      const days = periodRange === "QUARTER" ? 90 : Number(periodRange);
+      const start = new Date(today);
+      start.setDate(start.getDate() - days);
+      const end = new Date(today);
+      end.setDate(end.getDate() + days);
+      exportStart = start.toISOString().slice(0, 10);
+      exportEnd = end.toISOString().slice(0, 10);
+    }
+    const filterSummary = `Período: ${exportStart || "início"} a ${exportEnd || "fim"} | Conta: ${selectedAccount}, Categoria: ${selectedCategory}, Centro de Custo: ${selectedCostCenter}`;
+    const report = generateReport(
       `Fluxo de Caixa Realizado vs Projetado`,
       "Fluxo de Caixa",
       filterSummary,
+      {
+        format: "CSV",
+        startDate: exportStart || undefined,
+        endDate: exportEnd || undefined,
+        bankAccountId:
+          selectedAccount === "ALL" ? undefined : selectedAccount,
+        category: selectedCategory === "ALL" ? undefined : selectedCategory,
+        costCenter:
+          selectedCostCenter === "ALL" ? undefined : selectedCostCenter,
+      },
     );
+    if (report) downloadReportFile(report);
   };
 
   return (

@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
 import { Approval } from "../types";
 import DocumentPreview from "../components/DocumentPreview";
+import DocumentDownloadButton from "../components/DocumentDownloadButton";
 import {
   Check,
   X,
@@ -172,12 +173,21 @@ export default function ApprovalsView() {
               <span className="text-zinc-500 truncate">
                 Enviado por <strong>{previewApproval.requesterName}</strong>
               </span>
-              <button
-                onClick={() => setPreviewApprovalId(null)}
-                className="px-4 py-2 bg-[#0B2C52] text-white rounded-lg font-bold cursor-pointer"
-              >
-                Fechar
-              </button>
+              <div className="flex items-center gap-2">
+                <DocumentDownloadButton
+                  url={previewApproval.attachmentUrl}
+                  name={
+                    previewApproval.attachmentName || previewApproval.description
+                  }
+                  className="border border-blue-100 text-[#0B2C52] hover:bg-blue-50"
+                />
+                <button
+                  onClick={() => setPreviewApprovalId(null)}
+                  className="px-4 py-2 bg-[#0B2C52] text-white rounded-lg font-bold cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -379,12 +389,19 @@ export default function ApprovalsView() {
                           : <strong>{apv.attachmentName}</strong>
                         </span>
                       </div>
-                      <button
-                        onClick={() => setPreviewApprovalId(apv.id)}
-                        className="text-[11px] text-[#0B2C52] font-bold hover:bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Visualizar
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPreviewApprovalId(apv.id)}
+                          className="text-[11px] text-[#0B2C52] font-bold hover:bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye className="h-3.5 w-3.5" /> Visualizar
+                        </button>
+                        <DocumentDownloadButton
+                          url={apv.attachmentUrl}
+                          name={apv.attachmentName}
+                          className="border border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -505,6 +522,26 @@ export default function ApprovalsView() {
                           </p>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+                {apv.attachmentName && (
+                  <div className="px-5 py-3 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between gap-3 text-xs">
+                    <span className="min-w-0 truncate text-zinc-600 font-medium">
+                      {apv.attachmentName}
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setPreviewApprovalId(apv.id)}
+                        className="text-[11px] text-[#0B2C52] font-bold hover:bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Visualizar
+                      </button>
+                      <DocumentDownloadButton
+                        url={apv.attachmentUrl}
+                        name={apv.attachmentName}
+                        className="border border-emerald-100 text-emerald-700 hover:bg-emerald-50"
+                      />
                     </div>
                   </div>
                 )}

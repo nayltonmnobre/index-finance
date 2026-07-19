@@ -22,6 +22,7 @@ import {
   AuditLog,
   Notification,
   ReportRecord,
+  ReportGenerationOptions,
   BankStatementItem,
   UserRole,
   SupportTicket,
@@ -45,6 +46,11 @@ import {
   BANK_STATEMENTS_TO_IMPORT,
   ACCESS_PASSWORD,
 } from "../services/mockData";
+import {
+  createReportArtifact,
+  ReportCell,
+  ReportTableData,
+} from "../services/reportFiles";
 
 const PRIMARY_USER_ID = "u-client-admin";
 const USER_STORAGE_VERSION = "professional-users-v2";
@@ -83,6 +89,72 @@ const createDocumentApproval = (
     history: [],
   };
 };
+
+const DEFAULT_COMPANY_MASTER_DATA: Partial<
+  Record<MasterDataType, string[]>
+> = {
+  CATEGORY: ["Aluguel", "Energia", "Marketing", "Fornecedores"],
+  COST_CENTER: ["Administrativo", "Comercial", "Operacional"],
+  PAYMENT_METHOD: ["PIX", "Transferência", "Boleto", "Débito automático"],
+  DOCUMENT_TYPE: [
+    "Nota fiscal",
+    "Boleto",
+    "Comprovante",
+    "Recibo",
+    "Contrato",
+    "Extrato",
+    "Outros",
+  ],
+  SUPPLIER: [],
+  CUSTOMER: [],
+};
+
+const createCompanyMasterData = (
+  companyId: string,
+  values: Partial<Record<MasterDataType, string[]>> =
+    DEFAULT_COMPANY_MASTER_DATA,
+): MasterDataOption[] => {
+  const createdAt = new Date().toISOString();
+  const types = Object.keys(values) as MasterDataType[];
+
+  return types.flatMap((type) => {
+    const uniqueNames = Array.from(
+      new Map(
+        (values[type] || [])
+          .map((name) => name.trim())
+          .filter(Boolean)
+          .map((name) => [name.toLocaleLowerCase("pt-BR"), name]),
+      ).values(),
+    );
+
+    return uniqueNames.map((name, index) => ({
+      id: `md-${companyId}-${type.toLowerCase()}-${index}-${Math.random()
+        .toString(36)
+        .slice(2, 7)}`,
+      companyId,
+      type,
+      name,
+      active: true,
+      createdAt,
+    }));
+  });
+};
+
+export interface CompanyOnboardingData {
+  initialBankAccount: Omit<BankAccount, "id" | "companyId">;
+  masterData: Partial<Record<MasterDataType, string[]>>;
+}
+
+export interface CompanyCreationResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface ReconciliationResult {
+  success: boolean;
+  error?: string;
+  partial?: boolean;
+}
 
 interface BPOContextType {
   tenants: Tenant[];
@@ -212,7 +284,7 @@ interface BPOContextType {
     financialRecordId: string,
     type: "A_PAGAR" | "A_RECEBER",
     notes: string,
-  ) => void;
+  ) => ReconciliationResult;
   autoReconcileBank: (bankAccountId: string) => void;
   ignoreStatementItem: (
     bankAccountId: string,
@@ -220,9 +292,17 @@ interface BPOContextType {
     reason: string,
   ) => void;
 
-  generateReport: (name: string, type: string, filters: string) => void;
+  generateReport: (
+    name: string,
+    type: string,
+    filters: string,
+    options?: ReportGenerationOptions,
+  ) => ReportRecord | null;
 
-  addCompany: (data: Omit<Company, "id" | "createdAt" | "status">) => void;
+  addCompany: (
+    data: Omit<Company, "id" | "createdAt" | "status">,
+    onboarding: CompanyOnboardingData,
+  ) => CompanyCreationResult;
   updateCompany: (
     id: string,
     updates: Partial<Omit<Company, "id" | "createdAt" | "tenantId">>,
@@ -308,36 +388,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   const [masterData, setMasterData] = useState<MasterDataOption[]>(() =>
     loadState(
       "masterData",
-      companies.flatMap((company) => {
-        const defaults: Array<[MasterDataType, string]> = [
-          ["CATEGORY", "Aluguel"],
-          ["CATEGORY", "Energia"],
-          ["CATEGORY", "Marketing"],
-          ["CATEGORY", "Fornecedores"],
-          ["COST_CENTER", "Administrativo"],
-          ["COST_CENTER", "Comercial"],
-          ["COST_CENTER", "Operacional"],
-          ["PAYMENT_METHOD", "PIX"],
-          ["PAYMENT_METHOD", "Transferência"],
-          ["PAYMENT_METHOD", "Boleto"],
-          ["PAYMENT_METHOD", "Débito automático"],
-          ["DOCUMENT_TYPE", "Nota fiscal"],
-          ["DOCUMENT_TYPE", "Boleto"],
-          ["DOCUMENT_TYPE", "Comprovante"],
-          ["DOCUMENT_TYPE", "Recibo"],
-          ["DOCUMENT_TYPE", "Contrato"],
-          ["DOCUMENT_TYPE", "Extrato"],
-          ["DOCUMENT_TYPE", "Outros"],
-        ];
-        return defaults.map(([type, name], index) => ({
-          id: `md-default-${company.id}-${index}`,
-          companyId: company.id,
-          type,
-          name,
-          active: true,
-          createdAt: new Date().toISOString(),
-        }));
-      }),
+      companies.flatMap((company) => createCompanyMasterData(company.id)),
     ),
   );
   const [accountsPayable, setAccountsPayable] = useState<AccountPayable[]>(() =>
@@ -1712,45 +1763,154 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     financialRecordId: string,
     type: "A_PAGAR" | "A_RECEBER",
     notes: string,
-  ) => {
-    if (!hasPermission("reconciliation.execute")) return;
+  ): ReconciliationResult => {
+    if (!hasPermission("reconciliation.execute")) {
+      return { success: false, error: "Usuário sem permissão para conciliar." };
+    }
 
-    // Update statement item status
-    setStatementItems((prev) => {
-      const items = prev[bankAccountId] || [];
-      const updated = items.map((item) => {
-        if (item.id === statementItemId) {
-          return {
-            ...item,
-            isReconciled: true,
-            reconciliationStatus: "Conciliada" as const,
-            matchedTransactionId: financialRecordId,
-          };
-        }
-        return item;
+    const bankAccount = bankAccounts.find(
+      (account) =>
+        account.id === bankAccountId && account.companyId === activeCompanyId,
+    );
+    if (!bankAccount) {
+      return {
+        success: false,
+        error: "A conta bancária não pertence à empresa ativa.",
+      };
+    }
+    const statementItem = (statementItems[bankAccountId] || []).find(
+      (item) => item.id === statementItemId,
+    );
+    if (!statementItem) {
+      return { success: false, error: "Item do extrato não encontrado." };
+    }
+    if (statementItem.isReconciled) {
+      return { success: false, error: "Este item do extrato já foi conciliado." };
+    }
+    if (statementItem.amount === 0) {
+      return {
+        success: false,
+        error: "Um item de valor zero não pode ser conciliado.",
+      };
+    }
+    if (
+      (type === "A_PAGAR" && statementItem.amount >= 0) ||
+      (type === "A_RECEBER" && statementItem.amount <= 0)
+    ) {
+      return {
+        success: false,
+        error:
+          statementItem.amount < 0
+            ? "Uma saída bancária somente pode ser vinculada a uma conta a pagar."
+            : "Uma entrada bancária somente pode ser vinculada a uma conta a receber.",
+      };
+    }
+
+    const toCents = (value: number) =>
+      Math.round((Number(value) + Number.EPSILON) * 100);
+    const formatMoney = (value: number) =>
+      value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
       });
-      return { ...prev, [bankAccountId]: updated };
-    });
-
-    // Update financial record and change status to PAID / RECEIVED
+    const statementValue = Math.abs(statementItem.amount);
+    const statementCents = toCents(statementValue);
     const today = new Date().toISOString().split("T")[0];
+    let expectedValue = 0;
+    let isPartial = false;
+
     if (type === "A_PAGAR") {
-      const record = accountsPayable.find((ap) => ap.id === financialRecordId);
-      if (record && record.status !== "Paga") {
-        payAccountPayable(financialRecordId, today);
+      const record = accountsPayable.find((item) => item.id === financialRecordId);
+      if (!record || record.companyId !== activeCompanyId) {
+        return { success: false, error: "Conta a pagar não encontrada." };
       }
+      if (record.bankAccountId !== bankAccountId) {
+        return {
+          success: false,
+          error: "A conta a pagar utiliza uma conta bancária diferente do extrato.",
+        };
+      }
+      const eligibleStatuses: AccountPayable["status"][] = [
+        "Pendente",
+        "A vencer",
+        "Aprovada",
+        "Agendada",
+        "Vencida",
+      ];
+      if (!eligibleStatuses.includes(record.status)) {
+        return {
+          success: false,
+          error: `A conta a pagar está com status "${record.status}" e não pode ser conciliada.`,
+        };
+      }
+      expectedValue = record.finalAmount;
+      if (statementCents !== toCents(expectedValue)) {
+        return {
+          success: false,
+          error: `Valor incompatível: o extrato possui ${formatMoney(statementValue)} e a conta a pagar exige ${formatMoney(expectedValue)}. Nenhuma alteração foi realizada.`,
+        };
+      }
+      payAccountPayable(financialRecordId, today);
     } else {
       const record = accountsReceivable.find(
-        (ar) => ar.id === financialRecordId,
+        (item) => item.id === financialRecordId,
       );
-      if (record && !["Recebido", "Recebida"].includes(record.status)) {
-        receiveAccountReceivable(
-          financialRecordId,
-          record.amount - record.receivedAmount,
-          today,
-        );
+      if (!record || record.companyId !== activeCompanyId) {
+        return { success: false, error: "Conta a receber não encontrada." };
       }
+      if (record.bankAccountId !== bankAccountId) {
+        return {
+          success: false,
+          error:
+            "A conta a receber utiliza uma conta bancária diferente do extrato.",
+        };
+      }
+      if (
+        ["Recebido", "Recebida", "Cancelado", "Cancelada"].includes(
+          record.status,
+        )
+      ) {
+        return {
+          success: false,
+          error: `A conta a receber está com status "${record.status}" e não pode ser conciliada.`,
+        };
+      }
+      expectedValue = Math.max(
+        0,
+        record.amount +
+          record.interest +
+          record.penalty -
+          record.discount -
+          record.receivedAmount,
+      );
+      if (statementCents > toCents(expectedValue)) {
+        return {
+          success: false,
+          error: `Valor incompatível: o extrato possui ${formatMoney(statementValue)}, acima do saldo de ${formatMoney(expectedValue)} da conta a receber. Nenhuma alteração foi realizada.`,
+        };
+      }
+      isPartial = statementCents < toCents(expectedValue);
+      receiveAccountReceivable(financialRecordId, statementValue, today);
     }
+
+    setStatementItems((prev) => {
+      const items = prev[bankAccountId] || [];
+      return {
+        ...prev,
+        [bankAccountId]: items.map((item) =>
+          item.id === statementItemId
+            ? {
+                ...item,
+                isReconciled: true,
+                reconciliationStatus: isPartial
+                  ? ("Parcialmente conciliada" as const)
+                  : ("Conciliada" as const),
+                matchedTransactionId: financialRecordId,
+              }
+            : item,
+        ),
+      };
+    });
 
     createAuditLog(
       "CONCILIACAO_MANUAL",
@@ -1758,13 +1918,24 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       statementItemId,
       activeCompanyId,
       null,
-      { financialRecordId, type, notes },
+      {
+        financialRecordId,
+        type,
+        notes,
+        statementAmount: statementValue,
+        expectedAmount: expectedValue,
+        partial: isPartial,
+        bankAccountId,
+      },
     );
     addNotification(
-      "Conciliação Concluída",
-      "Transação e lançamento bancário associados com sucesso.",
+      isPartial ? "Recebimento Parcial Conciliado" : "Conciliação Concluída",
+      isPartial
+        ? `A entrada de ${formatMoney(statementValue)} foi registrada sem quitar integralmente a conta a receber.`
+        : "Transação e lançamento bancário associados com sucesso.",
       "SUCCESS",
     );
+    return { success: true, partial: isPartial };
   };
 
   const autoReconcileBank = (bankAccountId: string) => {
@@ -1883,71 +2054,541 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   };
 
   // --- REPORT GENERATION ---
-  const generateReport = (name: string, type: string, filters: string) => {
-    if (!hasPermission("reports.generate")) return;
+  const generateReport = (
+    name: string,
+    type: string,
+    filters: string,
+    options: ReportGenerationOptions = { format: "PDF" },
+  ): ReportRecord | null => {
+    if (!hasPermission("reports.generate") || !activeCompany) return null;
 
-    const id = `rep-${Date.now()}`;
+    const matchesPeriod = (date?: string) =>
+      Boolean(
+        date &&
+          (!options.startDate || date >= options.startDate) &&
+          (!options.endDate || date <= options.endDate),
+      );
+    const companyPayables = accountsPayable.filter(
+      (item) =>
+        item.companyId === activeCompanyId &&
+        matchesPeriod(
+          type === "Fluxo de Caixa"
+            ? item.paymentDate || item.dueDate
+            : type === "DRE"
+              ? item.issueDate
+              : item.dueDate,
+        ) &&
+        (!options.bankAccountId ||
+          item.bankAccountId === options.bankAccountId) &&
+        (!options.category || item.category === options.category) &&
+        (!options.costCenter || item.costCenter === options.costCenter),
+    );
+    const companyReceivables = accountsReceivable.filter(
+      (item) =>
+        item.companyId === activeCompanyId &&
+        matchesPeriod(
+          type === "Fluxo de Caixa"
+            ? item.receiptDate || item.dueDate
+            : type === "DRE"
+              ? item.issueDate
+              : item.dueDate,
+        ) &&
+        (!options.bankAccountId ||
+          item.bankAccountId === options.bankAccountId) &&
+        (!options.category || item.category === options.category) &&
+        (!options.costCenter || item.costCenter === options.costCenter),
+    );
+    let columns: string[] = [];
+    let rows: ReportCell[][] = [];
+
+    if (type === "Contas a Pagar") {
+      columns = [
+        "Vencimento",
+        "Fornecedor",
+        "Descrição",
+        "Categoria",
+        "Centro de custo",
+        "Status",
+        "Valor",
+        "Pagamento",
+      ];
+      rows = companyPayables
+        .sort((left, right) => left.dueDate.localeCompare(right.dueDate))
+        .map((item) => [
+          item.dueDate,
+          item.supplier,
+          item.description,
+          item.category,
+          item.costCenter,
+          item.status,
+          item.finalAmount,
+          item.paymentDate || "—",
+        ]);
+    } else if (type === "Contas a Receber") {
+      columns = [
+        "Vencimento",
+        "Cliente",
+        "Descrição",
+        "Categoria",
+        "Centro de custo",
+        "Status",
+        "Valor",
+        "Recebido",
+      ];
+      rows = companyReceivables
+        .sort((left, right) => left.dueDate.localeCompare(right.dueDate))
+        .map((item) => [
+          item.dueDate,
+          item.customer,
+          item.description,
+          item.category,
+          item.costCenter,
+          item.status,
+          item.amount,
+          item.receivedAmount,
+        ]);
+    } else if (type === "Inadimplência") {
+      const today = new Date().toISOString().slice(0, 10);
+      columns = [
+        "Vencimento",
+        "Cliente",
+        "Documento",
+        "Descrição",
+        "Status",
+        "Valor original",
+        "Saldo em aberto",
+      ];
+      rows = companyReceivables
+        .filter(
+          (item) =>
+            item.dueDate < today &&
+            item.receivedAmount < item.amount &&
+            !item.status.toLocaleLowerCase("pt-BR").startsWith("cancel"),
+        )
+        .sort((left, right) => left.dueDate.localeCompare(right.dueDate))
+        .map((item) => [
+          item.dueDate,
+          item.customer,
+          item.documentNumber,
+          item.description,
+          item.status,
+          item.amount,
+          Math.max(0, item.amount - item.receivedAmount),
+        ]);
+    } else if (type === "DRE") {
+      const grouped = new Map<string, { revenue: number; expense: number }>();
+      companyReceivables
+        .filter(
+          (item) =>
+            !item.status.toLocaleLowerCase("pt-BR").startsWith("cancel"),
+        )
+        .forEach((item) => {
+          const current = grouped.get(item.category) || {
+            revenue: 0,
+            expense: 0,
+          };
+          current.revenue += item.amount;
+          grouped.set(item.category, current);
+        });
+      companyPayables
+        .filter(
+          (item) =>
+            !item.status.toLocaleLowerCase("pt-BR").startsWith("cancel"),
+        )
+        .forEach((item) => {
+          const current = grouped.get(item.category) || {
+            revenue: 0,
+            expense: 0,
+          };
+          current.expense += item.finalAmount;
+          grouped.set(item.category, current);
+        });
+      columns = ["Categoria", "Receitas", "Despesas", "Resultado"];
+      rows = Array.from(grouped.entries())
+        .sort(([left], [right]) => left.localeCompare(right, "pt-BR"))
+        .map(([category, values]) => [
+          category,
+          values.revenue,
+          values.expense,
+          values.revenue - values.expense,
+        ]);
+      const revenueTotal = rows.reduce(
+        (total, row) => total + Number(row[1]),
+        0,
+      );
+      const expenseTotal = rows.reduce(
+        (total, row) => total + Number(row[2]),
+        0,
+      );
+      rows.push([
+        "TOTAL",
+        revenueTotal,
+        expenseTotal,
+        revenueTotal - expenseTotal,
+      ]);
+    } else if (type === "Conciliação") {
+      const companyAccounts = bankAccounts.filter(
+        (account) =>
+          account.companyId === activeCompanyId &&
+          (!options.bankAccountId || account.id === options.bankAccountId),
+      );
+      columns = [
+        "Data",
+        "Conta bancária",
+        "Descrição",
+        "Documento",
+        "Tipo",
+        "Valor",
+        "Conciliação",
+      ];
+      rows = companyAccounts
+        .flatMap((account) =>
+          (statementItems[account.id] || [])
+            .filter((item) => matchesPeriod(item.date))
+            .map(
+              (item): ReportCell[] => [
+                item.date,
+                `${account.bankName} - ${account.accountNumber}`,
+                item.description,
+                item.documentNumber || "—",
+                item.amount >= 0 ? "Entrada" : "Saída",
+                item.amount,
+                item.reconciliationStatus,
+              ],
+            ),
+        )
+        .sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+    } else {
+      columns = [
+        "Data",
+        "Movimento",
+        "Descrição",
+        "Entidade",
+        "Status",
+        "Previsto",
+        "Realizado",
+      ];
+      const payableRows: ReportCell[][] = companyPayables
+        .filter(
+          (item) =>
+            !item.status.toLocaleLowerCase("pt-BR").startsWith("cancel"),
+        )
+        .map((item) => [
+          item.paymentDate || item.dueDate,
+          "Saída",
+          item.description,
+          item.supplier,
+          item.status,
+          -item.finalAmount,
+          item.status === "Paga" ? -item.finalAmount : 0,
+        ]);
+      const receivableRows: ReportCell[][] = companyReceivables
+        .filter(
+          (item) =>
+            !item.status.toLocaleLowerCase("pt-BR").startsWith("cancel"),
+        )
+        .map((item) => [
+          item.receiptDate || item.dueDate,
+          "Entrada",
+          item.description,
+          item.customer,
+          item.status,
+          item.amount,
+          item.receivedAmount,
+        ]);
+      rows = [...payableRows, ...receivableRows].sort((left, right) =>
+        String(left[0]).localeCompare(String(right[0])),
+      );
+    }
+
+    const generatedAt = new Date().toISOString();
+    const table: ReportTableData = {
+      title: name,
+      companyName: activeCompany.tradeName,
+      filters,
+      generatedAt,
+      generatedBy: currentUser.name,
+      columns,
+      rows,
+    };
+    const artifact = createReportArtifact(table, options.format);
+    const id = `rep-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newReport: ReportRecord = {
       id,
       companyId: activeCompanyId,
       name,
       type,
       filters,
-      generatedAt: new Date().toISOString(),
+      generatedAt,
       generatedById: currentUser.id,
       generatedByName: currentUser.name,
-      fileUrl: `https://bpo-reports.com/${activeCompanyId}/${id}.pdf`,
-      fileSize: `${Math.floor(Math.random() * 400) + 100} KB`,
+      ...artifact,
     };
 
     setReports((prev) => [newReport, ...prev]);
+    const { fileContent: _fileContent, ...auditMetadata } = newReport;
+    void _fileContent;
     createAuditLog(
       "GERAR_RELATORIO",
       "Report",
       id,
       activeCompanyId,
       null,
-      newReport,
+      { ...auditMetadata, rowCount: rows.length },
     );
     addNotification(
       "Relatório Pronto",
-      `O relatório "${name}" foi compilado e está pronto para visualização.`,
+      `O relatório "${name}" foi gerado em ${options.format} com ${rows.length} registro(s).`,
       "SUCCESS",
     );
+    return newReport;
   };
 
   // --- ADMINISTRATION: COMPANIES & CLIENTS ---
-  const addCompany = (data: Omit<Company, "id" | "createdAt" | "status">) => {
-    if (currentUser.role !== "BPO_ADMIN") return;
+  const addCompany = (
+    data: Omit<Company, "id" | "createdAt" | "status">,
+    onboarding: CompanyOnboardingData,
+  ): CompanyCreationResult => {
+    if (currentUser.role !== "BPO_ADMIN") {
+      return {
+        success: false,
+        error: "Apenas administradores do BPO podem cadastrar empresas.",
+      };
+    }
+    if (!data.clientModules?.length) {
+      return {
+        success: false,
+        error: "Selecione pelo menos um módulo para o acesso do cliente.",
+      };
+    }
 
-    const id = `c-${Date.now()}`;
+    const normalizedCnpj = data.cnpj.replace(/\D/g, "");
+    if (
+      companies.some(
+        (company) => company.cnpj.replace(/\D/g, "") === normalizedCnpj,
+      )
+    ) {
+      return { success: false, error: "Já existe uma empresa com este CNPJ." };
+    }
+
+    const bpoResponsible = users.find(
+      (user) =>
+        user.id === data.bpoResponsibleId &&
+        user.status === "ACTIVE" &&
+        ["BPO_ADMIN", "BPO_TEAM"].includes(user.role),
+    );
+    if (!bpoResponsible) {
+      return {
+        success: false,
+        error: "Selecione um responsável BPO ativo para a nova empresa.",
+      };
+    }
+
+    const primaryContactName = data.primaryContactName.trim();
+    const primaryContactEmail = data.primaryContactEmail.trim().toLowerCase();
+    if (!primaryContactName || !primaryContactEmail) {
+      return {
+        success: false,
+        error: "Informe o nome e o e-mail do contato principal.",
+      };
+    }
+
+    const accountantName = data.accountantName.trim();
+    const accountantEmail = data.accountantEmail.trim().toLowerCase();
+    if (Boolean(accountantName) !== Boolean(accountantEmail)) {
+      return {
+        success: false,
+        error: "Para cadastrar o contador, informe o nome e o e-mail.",
+      };
+    }
+    if (accountantEmail && accountantEmail === primaryContactEmail) {
+      return {
+        success: false,
+        error: "O contato principal e o contador devem usar e-mails diferentes.",
+      };
+    }
+
+    const existingPrimaryContact = users.find(
+      (user) => user.email.trim().toLowerCase() === primaryContactEmail,
+    );
+    if (existingPrimaryContact && existingPrimaryContact.role !== "CLIENT") {
+      return {
+        success: false,
+        error:
+          "O e-mail do contato principal já pertence a um perfil que não é cliente.",
+      };
+    }
+
+    const existingAccountant = accountantEmail
+      ? users.find(
+          (user) => user.email.trim().toLowerCase() === accountantEmail,
+        )
+      : undefined;
+    if (existingAccountant && existingAccountant.role !== "ACCOUNTANT") {
+      return {
+        success: false,
+        error:
+          "O e-mail do contador já pertence a um perfil de acesso diferente.",
+      };
+    }
+
+    const bank = onboarding.initialBankAccount;
+    if (
+      !bank.bankName.trim() ||
+      !bank.agency.trim() ||
+      !bank.accountNumber.trim() ||
+      !Number.isFinite(Number(bank.balance))
+    ) {
+      return {
+        success: false,
+        error: "Preencha corretamente os dados da conta bancária inicial.",
+      };
+    }
+
+    const createdAt = new Date().toISOString();
+    const id = `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const newCompany: Company = {
       ...data,
+      cnpj: data.cnpj.trim(),
+      corporateName: data.corporateName.trim(),
+      tradeName: data.tradeName.trim(),
+      segment: data.segment.trim(),
+      accountantName,
+      accountantEmail,
+      primaryContactName,
+      primaryContactEmail,
+      bpoResponsibleId: bpoResponsible.id,
+      approvalLimit: Number(data.approvalLimit) || 0,
+      clientModules: Array.from(new Set(data.clientModules)),
       id,
-      status: "Implantação",
-      createdAt: new Date().toISOString(),
+      status: "Em dia",
+      createdAt,
     };
-
-    setCompanies((prev) => [...prev, newCompany]);
-
-    // Auto add default bank account for new company
     const newBank: BankAccount = {
-      id: `ba-${id}-itau`,
+      ...bank,
+      id: `ba-${id}-${Math.random().toString(36).slice(2, 7)}`,
       companyId: id,
-      bankName: "Banco Itaú S.A.",
-      agency: "0001",
-      accountNumber: "10001-1",
-      type: "Corrente",
-      balance: 0,
+      bankName: bank.bankName.trim(),
+      agency: bank.agency.trim(),
+      accountNumber: bank.accountNumber.trim(),
+      balance: Number(bank.balance),
     };
-    setBankAccounts((prev) => [...prev, newBank]);
 
-    createAuditLog("CRIAR_EMPRESA", "Company", id, id, null, newCompany);
+    const configuredMasterData = Object.fromEntries(
+      (Object.keys(DEFAULT_COMPANY_MASTER_DATA) as MasterDataType[]).map(
+        (type) => {
+          const suppliedValues = onboarding.masterData[type] || [];
+          const fallbackValues = DEFAULT_COMPANY_MASTER_DATA[type] || [];
+          return [type, suppliedValues.length ? suppliedValues : fallbackValues];
+        },
+      ),
+    ) as Partial<Record<MasterDataType, string[]>>;
+    const newMasterData = createCompanyMasterData(id, configuredMasterData);
+
+    const clientPermissions = [
+      "dashboard.view",
+      "approvals.approve",
+      "documents.upload",
+      "documents.download",
+      "reports.view",
+      "reports.generate",
+    ];
+    const accountantPermissions = [
+      "dashboard.view",
+      "documents.download",
+      "reports.view",
+      "reports.generate",
+    ];
+
+    setCompanies((previous) => [...previous, newCompany]);
+    setBankAccounts((previous) => [...previous, newBank]);
+    setMasterData((previous) => [...previous, ...newMasterData]);
+    setUsers((previous) => {
+      const linkCompany = (companyIds: string[] | undefined) =>
+        Array.from(new Set([...(companyIds || []), id]));
+      const mergePermissions = (current: string[], defaults: string[]) =>
+        Array.from(new Set([...current, ...defaults]));
+
+      let nextUsers = previous.map((user) => {
+        if (user.id === existingPrimaryContact?.id) {
+          return {
+            ...user,
+            name: primaryContactName,
+            status: "ACTIVE" as const,
+            companies: linkCompany(user.companies),
+            permissions: mergePermissions(user.permissions, clientPermissions),
+          };
+        }
+        if (user.id === existingAccountant?.id) {
+          return {
+            ...user,
+            name: accountantName,
+            status: "ACTIVE" as const,
+            companies: linkCompany(user.companies),
+            permissions: mergePermissions(
+              user.permissions,
+              accountantPermissions,
+            ),
+          };
+        }
+        if (user.id === bpoResponsible.id) {
+          return { ...user, companies: linkCompany(user.companies) };
+        }
+        return user;
+      });
+
+      if (!existingPrimaryContact) {
+        nextUsers = [
+          ...nextUsers,
+          {
+            id: `u-client-${id}`,
+            name: primaryContactName,
+            email: primaryContactEmail,
+            role: "CLIENT",
+            status: "ACTIVE",
+            title: `Contato principal - ${newCompany.tradeName}`,
+            companies: [id],
+            permissions: clientPermissions,
+          },
+        ];
+      }
+      if (accountantEmail && !existingAccountant) {
+        nextUsers = [
+          ...nextUsers,
+          {
+            id: `u-accountant-${id}`,
+            name: accountantName,
+            email: accountantEmail,
+            role: "ACCOUNTANT",
+            status: "ACTIVE",
+            title: `Contador responsável - ${newCompany.tradeName}`,
+            companies: [id],
+            permissions: accountantPermissions,
+          },
+        ];
+      }
+      return nextUsers;
+    });
+
+    createAuditLog("PROVISIONAR_EMPRESA", "Company", id, id, null, {
+      company: newCompany,
+      bankAccount: newBank,
+      masterDataCount: newMasterData.length,
+      primaryContactUserId: existingPrimaryContact?.id || `u-client-${id}`,
+      accountantUserId: accountantEmail
+        ? existingAccountant?.id || `u-accountant-${id}`
+        : undefined,
+      bpoResponsibleId: bpoResponsible.id,
+    });
     addNotification(
-      "Nova Empresa Cadastrada",
-      `A empresa "${data.tradeName}" foi integrada em modo de implantação.`,
+      "Empresa pronta para operar",
+      `A empresa "${newCompany.tradeName}" recebeu conta bancária, cadastros iniciais e acessos dos responsáveis.`,
       "SUCCESS",
+      undefined,
+      id,
     );
+
+    return { success: true };
   };
 
   const updateCompanyStatus = (id: string, status: Company["status"]) => {
@@ -2423,6 +3064,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     if (
       !document ||
       document.status !== "Aguardando Análise" ||
+      document.origin === "Manual" ||
+      document.mimeType === "application/x-manual-entry" ||
       document.purpose === "VIEW_ONLY" ||
       document.companyId !== activeCompany?.id ||
       !["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role) ||

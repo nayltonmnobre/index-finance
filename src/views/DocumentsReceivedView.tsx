@@ -12,6 +12,7 @@ import {
 import { useBPOState } from "../hooks/useBPOState";
 import { Document } from "../types";
 import FileTypeIcon from "../components/FileTypeIcon";
+import DocumentDownloadButton from "../components/DocumentDownloadButton";
 
 const STATUS: Document["status"][] = [
   "Aguardando Análise",
@@ -290,23 +291,6 @@ export default function DocumentsReceivedView() {
           </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <label className="text-[10px] font-bold text-zinc-500">
-            Cliente aprovador
-            <select
-              value={approvalRecipientId}
-              onChange={(event) =>
-                setApprovalRecipientId(event.target.value)
-              }
-              className="mt-1 block min-w-56 border border-zinc-200 rounded-lg px-3 py-2 text-xs bg-white"
-            >
-              <option value="">Selecione o cliente</option>
-              {approvalRecipients.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name} · Cliente
-                </option>
-              ))}
-            </select>
-          </label>
           <button
             onClick={() => setNewLaunchOpen(true)}
             className="self-end bg-[#0B2C52] text-white rounded-lg px-4 py-2.5 text-xs font-bold flex items-center gap-2 cursor-pointer"
@@ -330,7 +314,8 @@ export default function DocumentsReceivedView() {
               <div>
                 <h3 className="font-bold">Novo lançamento avulso</h3>
                 <p className="text-[10px] text-zinc-500 mt-1">
-                  Será incluído diretamente no financeiro com status Lançado.
+                  Será incluído diretamente no financeiro com status Lançado,
+                  sem aprovação do cliente.
                 </p>
               </div>
               <button type="button" onClick={() => setNewLaunchOpen(false)}>
@@ -654,14 +639,29 @@ export default function DocumentsReceivedView() {
               <Filter className="h-3.5 w-3.5" /> Filtros
             </button>
             {selectedEligible.length > 0 && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <select
+                  aria-label="Cliente aprovador dos lançamentos selecionados"
+                  value={approvalRecipientId}
+                  onChange={(event) =>
+                    setApprovalRecipientId(event.target.value)
+                  }
+                  className="border border-zinc-200 rounded-lg px-3 py-2 text-xs bg-white"
+                >
+                  <option value="">Cliente aprovador</option>
+                  {approvalRecipients.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   onClick={() => approveBatch(selectedEligible)}
                   disabled={!approvalRecipientId}
                   title={
                     approvalRecipientId
                       ? "Enviar selecionados para aprovação"
-                      : "Selecione um destinatário no topo da página"
+                      : "Selecione o cliente aprovador"
                   }
                   className="bg-blue-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg px-3 py-2 text-xs font-bold flex items-center gap-1.5"
                 >
@@ -760,6 +760,14 @@ export default function DocumentsReceivedView() {
                           <p className="text-[9px] text-zinc-400">
                             {document.category}
                           </p>
+                          {document.mimeType !== "application/x-manual-entry" && (
+                            <DocumentDownloadButton
+                              url={document.signedUrl}
+                              name={document.name}
+                              iconOnly
+                              className="mt-1 text-emerald-700 hover:bg-emerald-50"
+                            />
+                          )}
                         </div>
                       </div>
                     </td>
@@ -869,11 +877,21 @@ export default function DocumentsReceivedView() {
                     </p>
                   </div>
                 </div>
-                <span
-                  className={`h-fit text-[9px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${statusStyle[selected.status]}`}
-                >
-                  {selected.status}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {!isManualLaunch && (
+                    <DocumentDownloadButton
+                      url={selected.signedUrl}
+                      name={selected.name}
+                      iconOnly
+                      className="text-emerald-700 hover:bg-emerald-50"
+                    />
+                  )}
+                  <span
+                    className={`h-fit text-[9px] font-bold px-2 py-1 rounded-full whitespace-nowrap ${statusStyle[selected.status]}`}
+                  >
+                    {selected.status}
+                  </span>
+                </div>
               </div>
               <div className="px-4 border-b flex gap-5">
                 <button className="py-3 text-[10px] font-bold text-[#C8102E] border-b-2 border-[#C8102E]">
@@ -1125,10 +1143,27 @@ export default function DocumentsReceivedView() {
                 <p className="text-xs font-bold mb-3">Ações do BPO</p>
                 {selected.status === "Aguardando Análise" ? (
                   <div className="space-y-2">
+                    <label className="block text-[10px] font-bold text-zinc-500">
+                      Cliente aprovador
+                      <select
+                        value={approvalRecipientId}
+                        onChange={(event) =>
+                          setApprovalRecipientId(event.target.value)
+                        }
+                        className="mt-1 w-full border border-zinc-200 rounded-lg px-3 py-2 text-xs bg-white"
+                      >
+                        <option value="">Selecione o cliente</option>
+                        {approvalRecipients.map((user) => (
+                          <option key={user.id} value={user.id}>
+                            {user.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <p className="text-[10px] text-zinc-500">
                       {approvalRecipientId
                         ? `A aprovação será enviada para ${approvalRecipients.find((user) => user.id === approvalRecipientId)?.name}.`
-                        : "Selecione o cliente aprovador no topo."}
+                        : "Selecione o cliente aprovador acima."}
                     </p>
                     <div className="grid grid-cols-3 gap-2">
                       <button

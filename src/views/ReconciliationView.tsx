@@ -50,6 +50,7 @@ export default function ReconciliationView({
   const [ledgerType, setLedgerType] = useState<"A_PAGAR" | "A_RECEBER">(
     "A_PAGAR",
   );
+  const [reconciliationError, setReconciliationError] = useState("");
 
   if (!activeCompany) return null;
 
@@ -79,14 +80,17 @@ export default function ReconciliationView({
   const payablesOptions = accountsPayable.filter(
     (ap) =>
       ap.companyId === activeCompany.id &&
-      ap.status !== "Paga" &&
-      ap.status !== "Cancelada" &&
+      ap.bankAccountId === activeAccount?.id &&
+      ["Pendente", "A vencer", "Aprovada", "Agendada", "Vencida"].includes(
+        ap.status,
+      ) &&
       ap.description.toLowerCase().includes(ledgerSearchTerm.toLowerCase()),
   );
 
   const receivablesOptions = accountsReceivable.filter(
     (ar) =>
       ar.companyId === activeCompany.id &&
+      ar.bankAccountId === activeAccount?.id &&
       !["Recebido", "Recebida", "Cancelado", "Cancelada"].includes(ar.status) &&
       ar.description.toLowerCase().includes(ledgerSearchTerm.toLowerCase()),
   );
@@ -104,13 +108,20 @@ export default function ReconciliationView({
   const handleManualReconcile = (recordId: string) => {
     if (!activeAccount || !selectedStatementItem) return;
 
-    reconcileItemManually(
+    const result = reconcileItemManually(
       activeAccount.id,
       selectedStatementItem.id,
       recordId,
       ledgerType,
       "Conciliado manualmente no painel BPO",
     );
+    if (!result.success) {
+      setReconciliationError(
+        result.error || "Não foi possível realizar a conciliação.",
+      );
+      return;
+    }
+    setReconciliationError("");
     setSelectedStatementItem(null);
   };
 
@@ -126,6 +137,7 @@ export default function ReconciliationView({
     setSelectedStatementItem(item);
     setLedgerType(item.amount < 0 ? "A_PAGAR" : "A_RECEBER");
     setLedgerSearchTerm("");
+    setReconciliationError("");
   };
 
   return (
@@ -162,6 +174,7 @@ export default function ReconciliationView({
             onChange={(e) => {
               setSelectedAccountId(e.target.value);
               setSelectedStatementItem(null);
+              setReconciliationError("");
             }}
           >
             {accounts.map((ba) => (
@@ -367,7 +380,22 @@ export default function ReconciliationView({
                       )}
                     </span>
                   </div>
+                  <p className="text-[10px] leading-relaxed text-zinc-500">
+                    Saídas somente quitam contas a pagar com o mesmo valor e
+                    banco. Entradas menores que o saldo são registradas como
+                    recebimento parcial, sem quitar o restante.
+                  </p>
                 </div>
+
+                {reconciliationError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-700"
+                  >
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {reconciliationError}
+                  </div>
+                )}
 
                 {/* Ledger selector & search */}
                 <div className="space-y-3 flex-grow flex flex-col">
@@ -377,14 +405,22 @@ export default function ReconciliationView({
                     </span>
                     <div className="flex bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 text-[10px] font-bold">
                       <button
-                        onClick={() => setLedgerType("A_PAGAR")}
-                        className={`px-2 py-1 rounded cursor-pointer ${ledgerType === "A_PAGAR" ? "bg-white text-zinc-800 shadow-xs" : "text-zinc-400 hover:text-zinc-600"}`}
+                        disabled={selectedStatementItem.amount >= 0}
+                        onClick={() => {
+                          setLedgerType("A_PAGAR");
+                          setReconciliationError("");
+                        }}
+                        className={`px-2 py-1 rounded disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer ${ledgerType === "A_PAGAR" ? "bg-white text-zinc-800 shadow-xs" : "text-zinc-400 hover:text-zinc-600"}`}
                       >
                         Contas a Pagar
                       </button>
                       <button
-                        onClick={() => setLedgerType("A_RECEBER")}
-                        className={`px-2 py-1 rounded cursor-pointer ${ledgerType === "A_RECEBER" ? "bg-white text-zinc-800 shadow-xs" : "text-zinc-400 hover:text-zinc-600"}`}
+                        disabled={selectedStatementItem.amount <= 0}
+                        onClick={() => {
+                          setLedgerType("A_RECEBER");
+                          setReconciliationError("");
+                        }}
+                        className={`px-2 py-1 rounded disabled:opacity-35 disabled:cursor-not-allowed cursor-pointer ${ledgerType === "A_RECEBER" ? "bg-white text-zinc-800 shadow-xs" : "text-zinc-400 hover:text-zinc-600"}`}
                       >
                         Contas a Receber
                       </button>
@@ -415,8 +451,14 @@ export default function ReconciliationView({
                           return (
                             <div
                               key={ap.id}
-                              onClick={() => handleManualReconcile(ap.id)}
-                              className="p-3 hover:bg-zinc-50/50 cursor-pointer flex items-center justify-between text-xs transition-colors"
+                              onClick={() =>
+                                amountMatches && handleManualReconcile(ap.id)
+                              }
+                              className={`p-3 flex items-center justify-between text-xs transition-colors ${
+                                amountMatches
+                                  ? "hover:bg-zinc-50/50 cursor-pointer"
+                                  : "cursor-not-allowed bg-zinc-50/60 opacity-60"
+                              }`}
                             >
                               <div className="space-y-0.5 pr-2">
                                 <span className="font-bold text-zinc-800 block truncate max-w-[200px]">
@@ -437,27 +479,51 @@ export default function ReconciliationView({
                                     minimumFractionDigits: 2,
                                   })}
                                 </span>
-                                {amountMatches && (
-                                  <span className="text-[8px] bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold font-mono uppercase px-1.5 py-0.5 rounded">
-                                    Valor Compatível
-                                  </span>
-                                )}
+                                <span
+                                  className={`text-[8px] border font-bold font-mono uppercase px-1.5 py-0.5 rounded ${
+                                    amountMatches
+                                      ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                                      : "bg-red-50 border-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {amountMatches
+                                    ? "Quitação exata"
+                                    : "Valor incompatível"}
+                                </span>
                               </div>
                             </div>
                           );
                         })
                       : receivablesOptions.map((ar) => {
-                          const remaining = ar.amount - ar.receivedAmount;
+                          const remaining = Math.max(
+                            0,
+                            ar.amount +
+                              ar.interest +
+                              ar.penalty -
+                              ar.discount -
+                              ar.receivedAmount,
+                          );
+                          const statementAmount = Math.abs(
+                            selectedStatementItem.amount,
+                          );
+                          const toCents = (value: number) =>
+                            Math.round((value + Number.EPSILON) * 100);
                           const amountMatches =
-                            Math.abs(
-                              remaining -
-                                Math.abs(selectedStatementItem.amount),
-                            ) < 0.01;
+                            toCents(statementAmount) === toCents(remaining);
+                          const isPartial =
+                            toCents(statementAmount) < toCents(remaining);
+                          const isCompatible = amountMatches || isPartial;
                           return (
                             <div
                               key={ar.id}
-                              onClick={() => handleManualReconcile(ar.id)}
-                              className="p-3 hover:bg-zinc-50/50 cursor-pointer flex items-center justify-between text-xs transition-colors"
+                              onClick={() =>
+                                isCompatible && handleManualReconcile(ar.id)
+                              }
+                              className={`p-3 flex items-center justify-between text-xs transition-colors ${
+                                isCompatible
+                                  ? "hover:bg-zinc-50/50 cursor-pointer"
+                                  : "cursor-not-allowed bg-zinc-50/60 opacity-60"
+                              }`}
                             >
                               <div className="space-y-0.5 pr-2">
                                 <span className="font-bold text-zinc-800 block truncate max-w-[200px]">
@@ -478,11 +544,21 @@ export default function ReconciliationView({
                                     minimumFractionDigits: 2,
                                   })}
                                 </span>
-                                {amountMatches && (
-                                  <span className="text-[8px] bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold font-mono uppercase px-1.5 py-0.5 rounded">
-                                    Valor Compatível
-                                  </span>
-                                )}
+                                <span
+                                  className={`text-[8px] border font-bold font-mono uppercase px-1.5 py-0.5 rounded ${
+                                    amountMatches
+                                      ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                                      : isPartial
+                                        ? "bg-amber-50 border-amber-100 text-amber-700"
+                                        : "bg-red-50 border-red-100 text-red-700"
+                                  }`}
+                                >
+                                  {amountMatches
+                                    ? "Quitação exata"
+                                    : isPartial
+                                      ? "Recebimento parcial"
+                                      : "Valor incompatível"}
+                                </span>
                               </div>
                             </div>
                           );
@@ -510,7 +586,10 @@ export default function ReconciliationView({
                     conciliação.
                   </span>
                   <button
-                    onClick={() => setSelectedStatementItem(null)}
+                    onClick={() => {
+                      setSelectedStatementItem(null);
+                      setReconciliationError("");
+                    }}
                     className="text-zinc-500 font-bold hover:underline cursor-pointer"
                   >
                     Fechar painel

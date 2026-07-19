@@ -3,36 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
-import { useBPOState } from '../hooks/useBPOState';
-import { 
-  FileText, 
-  Download, 
-  Play, 
-  Search, 
-  Clock, 
-  Building2, 
-  CalendarDays, 
-  ListCollapse, 
-  Sparkles,
-  BarChart2,
-  TableProperties,
-  ArrowRight
-} from 'lucide-react';
+import React, { useState } from "react";
+import { useBPOState } from "../hooks/useBPOState";
+import { downloadReportFile } from "../services/reportFiles";
+import { FileText, Download, Play, Sparkles } from "lucide-react";
+
+const formatDate = (date: string) =>
+  new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR");
 
 export default function ReportsView() {
   const { 
     activeCompany, 
     reports, 
     generateReport, 
-    currentUser, 
     hasPermission 
   } = useBPOState();
 
-  const [selectedReportType, setSelectedReportType] = useState('Fluxo de Caixa');
-  const [startDate, setStartDate] = useState('2026-07-01');
-  const [endDate, setEndDate] = useState('2026-07-31');
-  const [exportFormat, setExportFormat] = useState<'PDF' | 'CSV'>('PDF');
+  const [selectedReportType, setSelectedReportType] = useState("Fluxo de Caixa");
+  const [startDate, setStartDate] = useState("2026-07-01");
+  const [endDate, setEndDate] = useState("2026-07-31");
+  const [exportFormat, setExportFormat] = useState<"PDF" | "CSV">("PDF");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   if (!activeCompany) return null;
 
@@ -49,17 +41,40 @@ export default function ReportsView() {
 
   const handleCompile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!hasPermission('reports.generate')) {
-      alert('Seu perfil não possui autorização para compilar relatórios.');
+    setError("");
+    setMessage("");
+    if (!hasPermission("reports.generate")) {
+      setError("Seu perfil não possui autorização para compilar relatórios.");
+      return;
+    }
+    if (!startDate || !endDate || startDate > endDate) {
+      setError("Informe um período válido para gerar o relatório.");
       return;
     }
 
-    const filters = `Período: ${new Date(startDate).toLocaleDateString('pt-BR')} até ${new Date(endDate).toLocaleDateString('pt-BR')} | Formato: ${exportFormat}`;
-    generateReport(`${selectedReportType} - Fechamento`, selectedReportType, filters);
+    const filters = `Período: ${formatDate(startDate)} até ${formatDate(endDate)} | Formato: ${exportFormat}`;
+    const report = generateReport(
+      `${selectedReportType} - Fechamento`,
+      selectedReportType,
+      filters,
+      { format: exportFormat, startDate, endDate },
+    );
+    if (!report) {
+      setError("Não foi possível gerar o relatório.");
+      return;
+    }
+    setMessage(
+      `${report.fileName} foi gerado e já está disponível no histórico.`,
+    );
   };
 
-  const downloadReportFile = (url: string, name: string) => {
-    alert(`Transferindo arquivo do Relatório do Servidor:\n\nNome: ${name}\nUrl: ${url}\n\nDownload concluído com sucesso.`);
+  const handleDownload = (report: (typeof reports)[number]) => {
+    setError("");
+    if (!downloadReportFile(report)) {
+      setError(
+        `O arquivo de "${report.name}" não está armazenado. Gere novamente este relatório.`,
+      );
+    }
   };
 
   return (
@@ -71,6 +86,17 @@ export default function ReportsView() {
           <p className="text-zinc-500 text-xs font-sans">Gere demonstrativos, DRE, fluxo de caixa consolidado e relatórios para envio à contabilidade.</p>
         </div>
       </div>
+
+      {message && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Compiler Console */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -124,8 +150,8 @@ export default function ReportsView() {
                   <input
                     type="radio"
                     name="format"
-                    checked={exportFormat === 'PDF'}
-                    onChange={() => setExportFormat('PDF')}
+                    checked={exportFormat === "PDF"}
+                    onChange={() => setExportFormat("PDF")}
                     className="cursor-pointer"
                   />
                   <span className="font-bold text-zinc-800">Formato PDF (.pdf)</span>
@@ -134,8 +160,8 @@ export default function ReportsView() {
                   <input
                     type="radio"
                     name="format"
-                    checked={exportFormat === 'CSV'}
-                    onChange={() => setExportFormat('CSV')}
+                    checked={exportFormat === "CSV"}
+                    onChange={() => setExportFormat("CSV")}
                     className="cursor-pointer"
                   />
                   <span className="font-bold text-zinc-800">Planilha CSV (.csv)</span>
@@ -184,6 +210,7 @@ export default function ReportsView() {
               <tr className="bg-zinc-50 border-b border-zinc-200">
                 <th className="p-3 text-zinc-500 font-bold uppercase">Relatório</th>
                 <th className="p-3 text-zinc-500 font-bold uppercase">Tipo</th>
+                <th className="p-3 text-zinc-500 font-bold uppercase">Formato</th>
                 <th className="p-3 text-zinc-500 font-bold uppercase">Parâmetros Aplicados</th>
                 <th className="p-3 text-zinc-500 font-bold uppercase">Gerado por</th>
                 <th className="p-3 text-zinc-500 font-bold uppercase">Data Compilação</th>
@@ -198,13 +225,22 @@ export default function ReportsView() {
                     {rep.name}
                   </td>
                   <td className="p-3 font-medium text-zinc-600">{rep.type}</td>
+                  <td className="p-3 font-bold text-zinc-600">
+                    {rep.format || "Legado"}
+                  </td>
                   <td className="p-3 text-zinc-400 max-w-xs truncate">{rep.filters}</td>
                   <td className="p-3 text-zinc-500 font-medium">{rep.generatedByName}</td>
                   <td className="p-3 text-zinc-500">{new Date(rep.generatedAt).toLocaleString('pt-BR')}</td>
                   <td className="p-3 text-right">
                     <button
-                      onClick={() => downloadReportFile(rep.fileUrl, rep.name)}
-                      className="text-xs bg-zinc-100 hover:bg-zinc-950 hover:text-white text-zinc-800 px-3 py-1.5 rounded font-bold border border-zinc-200 transition-colors cursor-pointer flex items-center gap-1 inline-flex"
+                      onClick={() => handleDownload(rep)}
+                      disabled={!rep.fileContent}
+                      title={
+                        rep.fileContent
+                          ? `Baixar ${rep.fileName}`
+                          : "Relatório legado sem arquivo armazenado"
+                      }
+                      className="text-xs bg-zinc-100 hover:bg-zinc-950 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed text-zinc-800 px-3 py-1.5 rounded font-bold border border-zinc-200 transition-colors cursor-pointer flex items-center gap-1 inline-flex"
                     >
                       <Download className="h-3.5 w-3.5" /> Baixar ({rep.fileSize})
                     </button>
@@ -213,7 +249,7 @@ export default function ReportsView() {
               ))}
               {companyReports.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-zinc-400 italic">
+                  <td colSpan={7} className="p-8 text-center text-zinc-400 italic">
                     Nenhum relatório compilado na sessão recente. Use o painel acima para gerar um novo.
                   </td>
                 </tr>

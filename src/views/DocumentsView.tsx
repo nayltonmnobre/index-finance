@@ -4,6 +4,7 @@ import { Document } from "../types";
 import { analyzeDocumentVisually } from "../services/documentAnalysis";
 import FileTypeIcon from "../components/FileTypeIcon";
 import DocumentPreview from "../components/DocumentPreview";
+import DocumentDownloadButton from "../components/DocumentDownloadButton";
 import {
   Bot,
   Check,
@@ -164,7 +165,9 @@ export default function DocumentsView() {
   const [flowCompanyId, setFlowCompanyId] = useState("");
   const [flowRecipientId, setFlowRecipientId] = useState("");
   const [approvalRecipientId, setApprovalRecipientId] = useState("");
-  const [historyTab, setHistoryTab] = useState<"sent" | "received">("sent");
+  const [historyTab, setHistoryTab] = useState<"sent" | "received">(() =>
+    ["CLIENT", "ACCOUNTANT"].includes(currentUser.role) ? "received" : "sent",
+  );
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(
     null,
   );
@@ -226,23 +229,19 @@ export default function DocumentsView() {
   const receivedDocuments = useMemo(
     () =>
       documents
-        .filter((document) => {
-          const sharerRole =
-            document.sharedByRole ||
-            users.find((user) => user.id === document.sharedById)?.role;
-          return (
+        .filter(
+          (document) =>
             document.companyId === activeCompany?.id &&
             document.recipientId === currentUser.id &&
-            document.purpose === "VIEW_ONLY" &&
-            ["BPO_ADMIN", "BPO_TEAM"].includes(sharerRole || "")
-          );
-        })
+            (document.purpose === "VIEW_ONLY" ||
+              document.status === "Compartilhado"),
+        )
         .sort(
           (first, second) =>
             new Date(second.sharedAt || second.uploadedAt).getTime() -
             new Date(first.sharedAt || first.uploadedAt).getTime(),
         ),
-    [activeCompany?.id, currentUser.id, documents, users],
+    [activeCompany?.id, currentUser.id, documents],
   );
 
   const isBpoUser = ["BPO_ADMIN", "BPO_TEAM"].includes(currentUser.role);
@@ -766,12 +765,19 @@ export default function DocumentsView() {
                     ? `Compartilhado com ${previewDocument.recipientName}`
                     : "Documento do seu histórico"}
               </span>
-              <button
-                onClick={() => setPreviewDocumentId(null)}
-                className="px-4 py-2 bg-[#0B2C52] text-white rounded-lg font-bold cursor-pointer"
-              >
-                Fechar
-              </button>
+              <div className="flex items-center gap-2">
+                <DocumentDownloadButton
+                  url={previewDocument.signedUrl}
+                  name={previewDocument.name}
+                  className="border border-blue-100 text-[#0B2C52] hover:bg-blue-50"
+                />
+                <button
+                  onClick={() => setPreviewDocumentId(null)}
+                  className="px-4 py-2 bg-[#0B2C52] text-white rounded-lg font-bold cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1294,6 +1300,12 @@ export default function DocumentsView() {
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
+                        <DocumentDownloadButton
+                          url={document.signedUrl}
+                          name={document.name}
+                          iconOnly
+                          className="text-emerald-700 hover:bg-emerald-50"
+                        />
                         {historyTab === "sent" &&
                           document.uploadedById === currentUser.id &&
                           hasPermission("documents.upload") && (

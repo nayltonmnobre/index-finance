@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
+import { getCompanyClientModules } from "../config/clientModules";
 import {
   DollarSign,
   ArrowUpRight,
@@ -45,6 +46,8 @@ export default function DashboardView({
     approvals,
     auditLogs,
     isApprovalVisibleToCurrentUser,
+    currentUser,
+    hasPermission,
   } = useBPOState();
 
   const [timeframe, setTimeframe] = useState<"7" | "15" | "30" | "90">("30");
@@ -79,6 +82,11 @@ export default function DashboardView({
   const companyLogs = auditLogs.filter(
     (log) => log.companyId === activeCompany.id,
   );
+  const enabledClientModules = getCompanyClientModules(activeCompany);
+  const canOpenPayables = hasPermission("accounts-payable.view");
+  const canOpenApprovals =
+    currentUser.role !== "CLIENT" || enabledClientModules.includes("approvals");
+  const canOpenAuditLogs = currentUser.role === "BPO_ADMIN";
 
   // 1. Current Balance
   const totalBalance = companyAccounts.reduce((sum, ba) => sum + ba.balance, 0);
@@ -381,12 +389,14 @@ export default function DashboardView({
               <AlertCircle className="h-4 w-4" />
             </div>
           </div>
-          <button
-            onClick={() => onNavigate("payable")}
-            className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
-          >
-            Ver Contas Vencidas <ChevronRight className="h-3 w-3" />
-          </button>
+          {canOpenPayables && (
+            <button
+              onClick={() => onNavigate("payable")}
+              className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
+            >
+              Ver Contas Vencidas <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
         {/* Card 5: Aprovações pendentes */}
@@ -412,12 +422,14 @@ export default function DashboardView({
               <Clock className="h-4 w-4" />
             </div>
           </div>
-          <button
-            onClick={() => onNavigate("approvals")}
-            className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
-          >
-            Acessar Central de Aprovações <ChevronRight className="h-3 w-3" />
-          </button>
+          {canOpenApprovals && (
+            <button
+              onClick={() => onNavigate("approvals")}
+              className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
+            >
+              Acessar Central de Aprovações <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </div>
 
         {/* Card 6: BPO Status */}
@@ -444,12 +456,14 @@ export default function DashboardView({
               ? new Date(companyLogs[0].timestamp).toLocaleTimeString()
               : "Agora"}
           </div>
-          <button
-            onClick={() => onNavigate("audit-logs")}
-            className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
-          >
-            Consultar Logs de Auditoria <ChevronRight className="h-3 w-3" />
-          </button>
+          {canOpenAuditLogs && (
+            <button
+              onClick={() => onNavigate("audit-logs")}
+              className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
+            >
+              Consultar Logs de Auditoria <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -732,12 +746,14 @@ export default function DashboardView({
                 Contas que vencem nos próximos dias.
               </p>
             </div>
-            <button
-              onClick={() => onNavigate("payable")}
-              className="text-xs font-bold text-zinc-900 hover:underline flex items-center gap-0.5"
-            >
-              Ver Tudo <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+            {canOpenPayables && (
+              <button
+                onClick={() => onNavigate("payable")}
+                className="text-xs font-bold text-zinc-900 hover:underline flex items-center gap-0.5"
+              >
+                Ver Tudo <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="space-y-3">

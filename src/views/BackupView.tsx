@@ -1,10 +1,10 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef, useState } from 'react';
-import { useBPOState } from '../hooks/useBPOState';
+import React, { useRef, useState } from "react";
+import { useBPOState } from "../hooks/useBPOState";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -14,206 +14,565 @@ import {
   Lock,
   RefreshCw,
   ShieldCheck,
-  Upload
-} from 'lucide-react';
+  Upload,
+} from "lucide-react";
 
 const BACKUP_KEYS = [
-  'tenants',
-  'companies',
-  'users',
-  'bankAccounts',
-  'accountsPayable',
-  'accountsReceivable',
-  'approvals',
-  'documents',
-  'auditLogs',
-  'notifications',
-  'reports',
-  'statementItems',
-  'supportTickets',
-  'activeCompanyId'
+  "tenants",
+  "companies",
+  "users",
+  "bankAccounts",
+  "masterData",
+  "accountsPayable",
+  "accountsReceivable",
+  "approvals",
+  "documents",
+  "auditLogs",
+  "notifications",
+  "reports",
+  "statementItems",
+  "supportTickets",
+  "activeCompanyId",
 ] as const;
 
+const ARRAY_BACKUP_KEYS = [
+  "tenants",
+  "companies",
+  "users",
+  "bankAccounts",
+  "masterData",
+  "accountsPayable",
+  "accountsReceivable",
+  "approvals",
+  "documents",
+  "auditLogs",
+  "notifications",
+  "reports",
+  "supportTickets",
+] as const;
+
+interface EmbeddedBackupFile {
+  sourceUrl: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  sha256: string;
+  data: string;
+}
+
 interface BackupFile {
-  format: 'idex-finance-backup';
-  version: 1;
+  format: "idex-finance-backup";
+  version: 2;
   exportedAt: string;
   exportedBy: string;
   data: Record<string, unknown>;
+  files: EmbeddedBackupFile[];
 }
 
-function isValidBackup(value: unknown): value is BackupFile {
-  if (!value || typeof value !== 'object') return false;
-  const backup = value as Partial<BackupFile>;
-  if (
-    backup.format !== 'idex-finance-backup' ||
-    backup.version !== 1 ||
-    !backup.data ||
-    typeof backup.data !== 'object'
-  ) return false;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
-  const data = backup.data as Record<string, unknown>;
-  return Array.isArray(data.users) && Array.isArray(data.companies);
+function isManagedUploadReference(value: string): boolean {
+  try {
+    return new URL(value, window.location.origin).pathname.startsWith(
+      "/uploads/",
+    );
+  } catch {
+    return false;
+  }
+}
+
+function collectManagedUploadReferences(value: unknown, result = new Set<string>()) {
+  if (typeof value === "string") {
+    if (isManagedUploadReference(value)) result.add(value);
+    return result;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectManagedUploadReferences(item, result));
+    return result;
+  }
+  if (isRecord(value)) {
+    Object.values(value).forEach((item) =>
+      collectManagedUploadReferences(item, result),
+    );
+  }
+  return result;
+}
+
+function replaceFileReferences(
+  value: unknown,
+  restoredUrls: Map<string, string>,
+): unknown {
+  if (typeof value === "string") return restoredUrls.get(value) || value;
+  if (Array.isArray(value)) {
+    return value.map((item) => replaceFileReferences(item, restoredUrls));
+  }
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        replaceFileReferences(item, restoredUrls),
+      ]),
+    );
+  }
+  return value;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = () => reject(new Error("Não foi possível ler um anexo."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToArrayBuffer(data: string): ArrayBuffer {
+  const binary = window.atob(data);
+  const buffer = new ArrayBuffer(binary.length);
+  const bytes = new Uint8Array(buffer);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return buffer;
+}
+
+async function calculateSha256(buffer: ArrayBuffer): Promise<string> {
+  const hash = await window.crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(hash))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function fileNameFromUrl(sourceUrl: string): string {
+  try {
+    const pathName = new URL(sourceUrl, window.location.origin).pathname;
+    return decodeURIComponent(pathName.split("/").pop() || "arquivo");
+  } catch {
+    return "arquivo";
+  }
+}
+
+function validateBackup(value: unknown): BackupFile {
+  if (!isRecord(value) || value.format !== "idex-finance-backup") {
+    throw new Error("Formato de backup inválido.");
+  }
+  if (value.version === 1) {
+    throw new Error(
+      "Este backup foi gerado no formato antigo e não contém cadastros e arquivos suficientes para uma restauração segura.",
+    );
+  }
+  if (value.version !== 2 || !isRecord(value.data) || !Array.isArray(value.files)) {
+    throw new Error("Versão de backup inválida ou não suportada.");
+  }
+  if (
+    typeof value.exportedAt !== "string" ||
+    typeof value.exportedBy !== "string" ||
+    !ARRAY_BACKUP_KEYS.every((key) => Array.isArray(value.data[key])) ||
+    !isRecord(value.data.statementItems) ||
+    typeof value.data.activeCompanyId !== "string"
+  ) {
+    throw new Error("O backup está incompleto ou possui dados inválidos.");
+  }
+
+  const files = value.files as unknown[];
+  const validFiles = files.every(
+    (file) =>
+      isRecord(file) &&
+      typeof file.sourceUrl === "string" &&
+      typeof file.fileName === "string" &&
+      typeof file.mimeType === "string" &&
+      typeof file.size === "number" &&
+      file.size >= 0 &&
+      typeof file.sha256 === "string" &&
+      /^[a-f0-9]{64}$/.test(file.sha256) &&
+      typeof file.data === "string",
+  );
+  if (!validFiles) throw new Error("O backup contém anexos inválidos.");
+
+  const typedBackup = value as unknown as BackupFile;
+  const embeddedUrls = new Set(typedBackup.files.map((file) => file.sourceUrl));
+  if (embeddedUrls.size !== typedBackup.files.length) {
+    throw new Error("O backup contém anexos duplicados.");
+  }
+  const missingFile = Array.from(
+    collectManagedUploadReferences(typedBackup.data),
+  ).find((url) => !embeddedUrls.has(url));
+  if (missingFile) {
+    throw new Error(
+      `O backup referencia um arquivo que não foi incluído: ${fileNameFromUrl(missingFile)}.`,
+    );
+  }
+
+  return typedBackup;
+}
+
+function persistRestoredData(data: Record<string, unknown>) {
+  const serialized = new Map<string, string>();
+  const previousValues = new Map<string, string | null>();
+
+  BACKUP_KEYS.forEach((key) => {
+    if (!Object.prototype.hasOwnProperty.call(data, key)) {
+      throw new Error(`O conjunto de dados ${key} está ausente no backup.`);
+    }
+    const storageKey = `bpo_saas_${key}`;
+    serialized.set(storageKey, JSON.stringify(data[key]));
+    previousValues.set(storageKey, localStorage.getItem(storageKey));
+  });
+
+  try {
+    serialized.forEach((value, key) => localStorage.setItem(key, value));
+  } catch (reason) {
+    previousValues.forEach((value, key) => {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    });
+    throw reason;
+  }
 }
 
 export default function BackupView() {
-  const { currentUser } = useBPOState();
+  const {
+    tenants,
+    companies,
+    users,
+    bankAccounts,
+    masterData,
+    accountsPayable,
+    accountsReceivable,
+    approvals,
+    documents,
+    auditLogs,
+    notifications,
+    reports,
+    statementItems,
+    supportTickets,
+    currentUser,
+    activeCompany,
+  } = useBPOState();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedBackup, setSelectedBackup] = useState<BackupFile | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState('');
-  const [error, setError] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState("");
+  const [error, setError] = useState("");
   const [restored, setRestored] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [progress, setProgress] = useState("");
 
-  if (currentUser.role !== 'BPO_ADMIN') {
+  if (currentUser.role !== "BPO_ADMIN") {
     return (
       <div className="bg-white border border-zinc-200 rounded-xl p-8 text-center space-y-3">
         <Lock className="h-8 w-8 mx-auto text-zinc-400" />
         <p className="text-zinc-600 text-xs font-semibold">
-          Apenas o proprietário com perfil Administrador BPO pode acessar backups.
+          Apenas o proprietário com perfil Administrador BPO pode acessar
+          backups.
         </p>
       </div>
     );
   }
 
-  const handleDownload = () => {
-    const data: Record<string, unknown> = {};
-    BACKUP_KEYS.forEach(key => {
-      const storedValue = localStorage.getItem(`bpo_saas_${key}`);
-      if (storedValue !== null) data[key] = JSON.parse(storedValue);
-    });
+  const buildLiveBackupData = (): Record<string, unknown> => ({
+    tenants,
+    companies,
+    users,
+    bankAccounts,
+    masterData,
+    accountsPayable,
+    accountsReceivable,
+    approvals,
+    documents,
+    auditLogs,
+    notifications,
+    reports,
+    statementItems,
+    supportTickets,
+    activeCompanyId: activeCompany?.id || companies[0]?.id || "",
+  });
 
-    const backup: BackupFile = {
-      format: 'idex-finance-backup',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      exportedBy: currentUser.email,
-      data
-    };
+  const handleDownload = async () => {
+    setError("");
+    setRestored(false);
+    setIsExporting(true);
+    try {
+      const data = buildLiveBackupData();
+      const sourceUrls = Array.from(collectManagedUploadReferences(data));
+      const files: EmbeddedBackupFile[] = [];
 
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10);
-    link.href = url;
-    link.download = `idex-finance-backup-${date}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+      for (let index = 0; index < sourceUrls.length; index += 1) {
+        const sourceUrl = sourceUrls[index];
+        setProgress(`Incluindo arquivo ${index + 1} de ${sourceUrls.length}...`);
+        const response = await fetch(sourceUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Não foi possível incluir o arquivo ${fileNameFromUrl(sourceUrl)}. O backup não foi gerado para evitar uma cópia incompleta.`,
+          );
+        }
+        const blob = await response.blob();
+        const buffer = await blob.arrayBuffer();
+        files.push({
+          sourceUrl,
+          fileName: fileNameFromUrl(sourceUrl),
+          mimeType: blob.type || "application/octet-stream",
+          size: blob.size,
+          sha256: await calculateSha256(buffer),
+          data: await blobToBase64(blob),
+        });
+      }
+
+      const backup: BackupFile = {
+        format: "idex-finance-backup",
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        exportedBy: currentUser.email,
+        data,
+        files,
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `idex-finance-backup-${date}.json`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível gerar o backup.",
+      );
+    } finally {
+      setProgress("");
+      setIsExporting(false);
+    }
   };
 
   const handleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    setError('');
+    setError("");
     setRestored(false);
     setSelectedBackup(null);
-    setSelectedFileName('');
+    setSelectedFileName("");
     if (!file) return;
 
     try {
       const parsed: unknown = JSON.parse(await file.text());
-      if (!isValidBackup(parsed)) throw new Error('Formato de backup inválido.');
-      setSelectedBackup(parsed);
+      const backup = validateBackup(parsed);
+      setSelectedBackup(backup);
       setSelectedFileName(file.name);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Não foi possível ler o arquivo.');
-      if (inputRef.current) inputRef.current.value = '';
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível ler o arquivo.",
+      );
+      if (inputRef.current) inputRef.current.value = "";
     }
   };
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     if (!selectedBackup) return;
     const confirmed = window.confirm(
-      'Restaurar este backup substituirá os dados atuais do sistema. Deseja continuar?'
+      "Restaurar este backup substituirá os dados e arquivos atuais do sistema. Deseja continuar?",
     );
     if (!confirmed) return;
 
-    BACKUP_KEYS.forEach(key => {
-      if (Object.prototype.hasOwnProperty.call(selectedBackup.data, key)) {
-        localStorage.setItem(`bpo_saas_${key}`, JSON.stringify(selectedBackup.data[key]));
+    setError("");
+    setRestored(false);
+    setIsRestoring(true);
+    try {
+      const restoredUrls = new Map<string, string>();
+      for (let index = 0; index < selectedBackup.files.length; index += 1) {
+        const file = selectedBackup.files[index];
+        setProgress(
+          `Restaurando arquivo ${index + 1} de ${selectedBackup.files.length}...`,
+        );
+        let buffer: ArrayBuffer;
+        try {
+          buffer = base64ToArrayBuffer(file.data);
+        } catch {
+          throw new Error(`O arquivo ${file.fileName} possui conteúdo inválido.`);
+        }
+        if (buffer.byteLength !== file.size) {
+          throw new Error(`O arquivo ${file.fileName} está incompleto.`);
+        }
+        if ((await calculateSha256(buffer)) !== file.sha256) {
+          throw new Error(`A integridade do arquivo ${file.fileName} é inválida.`);
+        }
+
+        const response = await fetch("/api/documents/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: file.data,
+            fileName: file.fileName,
+            mimeType: file.mimeType,
+          }),
+        });
+        const result = (await response.json().catch(() => ({}))) as {
+          url?: string;
+          error?: string;
+        };
+        if (!response.ok || !result.url) {
+          throw new Error(
+            result.error || `Não foi possível restaurar ${file.fileName}.`,
+          );
+        }
+        restoredUrls.set(file.sourceUrl, result.url);
       }
-    });
-    setRestored(true);
-    window.setTimeout(() => window.location.reload(), 700);
+
+      setProgress("Aplicando os dados restaurados...");
+      const restoredData = replaceFileReferences(
+        selectedBackup.data,
+        restoredUrls,
+      ) as Record<string, unknown>;
+      persistRestoredData(restoredData);
+      setRestored(true);
+      window.setTimeout(() => window.location.reload(), 900);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível restaurar o backup.",
+      );
+    } finally {
+      setProgress("");
+      setIsRestoring(false);
+    }
   };
+
+  const embeddedSize =
+    selectedBackup?.files.reduce((total, file) => total + file.size, 0) || 0;
 
   return (
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2">
           <HardDriveDownload className="h-5 w-5 text-[#0B2C52]" />
-          <h2 className="text-xl font-bold text-zinc-900 tracking-tight">Backup de Dados</h2>
+          <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
+            Backup de Dados
+          </h2>
         </div>
         <p className="text-zinc-500 text-xs mt-1">
-          Exporte uma cópia dos dados operacionais ou restaure um backup anterior.
+          Exporte e restaure dados operacionais, cadastros auxiliares e os
+          arquivos originais enviados.
         </p>
       </div>
 
       <div className="flex items-start gap-3 rounded-xl border border-[#0B2C52]/15 bg-[#0B2C52]/5 p-4">
         <ShieldCheck className="h-5 w-5 text-[#0B2C52] shrink-0" />
         <div>
-          <p className="text-xs font-bold text-[#0B2C52]">Área exclusiva do proprietário BPO</p>
+          <p className="text-xs font-bold text-[#0B2C52]">
+            Área exclusiva do proprietário BPO
+          </p>
           <p className="text-[11px] text-zinc-600 mt-0.5">
-            O arquivo contém informações financeiras e deve ser armazenado em local seguro.
+            O arquivo contém informações financeiras e anexos em Base64. Ele
+            pode ficar grande e deve ser armazenado em local seguro.
           </p>
         </div>
       </div>
 
+      {error && (
+        <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
+        </div>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="bg-white rounded-xl border border-zinc-200 shadow-xs p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700"><Download className="h-5 w-5" /></div>
+            <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
+              <Download className="h-5 w-5" />
+            </div>
             <div>
-              <h3 className="text-sm font-bold text-zinc-900">Baixar backup</h3>
-              <p className="text-[11px] text-zinc-500">Gera uma cópia completa no formato JSON.</p>
+              <h3 className="text-sm font-bold text-zinc-900">
+                Baixar backup completo
+              </h3>
+              <p className="text-[11px] text-zinc-500">
+                Inclui masterData e uma cópia verificável de cada anexo.
+              </p>
             </div>
           </div>
           <button
-            onClick={handleDownload}
-            className="w-full flex items-center justify-center gap-2 bg-[#0B2C52] hover:bg-[#0B2C52]/90 text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
+            onClick={() => void handleDownload()}
+            disabled={isExporting || isRestoring}
+            className="w-full flex items-center justify-center gap-2 bg-[#0B2C52] hover:bg-[#0B2C52]/90 disabled:opacity-50 disabled:cursor-wait text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
           >
-            <HardDriveDownload className="h-4 w-4" /> Gerar e baixar backup
+            <HardDriveDownload className="h-4 w-4" />
+            {isExporting ? progress || "Preparando backup..." : "Gerar e baixar backup"}
           </button>
         </section>
 
         <section className="bg-white rounded-xl border border-zinc-200 shadow-xs p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700"><Upload className="h-5 w-5" /></div>
+            <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700">
+              <Upload className="h-5 w-5" />
+            </div>
             <div>
-              <h3 className="text-sm font-bold text-zinc-900">Restaurar backup</h3>
-              <p className="text-[11px] text-zinc-500">Selecione um arquivo gerado pelo Idex Finance.</p>
+              <h3 className="text-sm font-bold text-zinc-900">
+                Restaurar backup
+              </h3>
+              <p className="text-[11px] text-zinc-500">
+                Valida dados, anexos e integridade antes de substituir o estado atual.
+              </p>
             </div>
           </div>
 
-          <input ref={inputRef} type="file" accept="application/json,.json" onChange={handleFile} className="hidden" />
+          <input
+            ref={inputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleFile}
+            disabled={isExporting || isRestoring}
+            className="hidden"
+          />
           <button
             onClick={() => inputRef.current?.click()}
-            className="w-full flex items-center justify-center gap-2 border border-zinc-300 hover:bg-zinc-50 text-zinc-800 text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
+            disabled={isExporting || isRestoring}
+            className="w-full flex items-center justify-center gap-2 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50 text-zinc-800 text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
           >
             <FileJson className="h-4 w-4" /> Selecionar arquivo de backup
           </button>
 
-          {error && (
-            <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
-              <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
-            </div>
-          )}
-
           {selectedBackup && (
             <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-2 text-[11px]">
-              <div className="flex items-center gap-2 font-bold text-zinc-800"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Arquivo validado</div>
+              <div className="flex items-center gap-2 font-bold text-zinc-800">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Arquivo
+                validado
+              </div>
               <p className="text-zinc-600 truncate">{selectedFileName}</p>
-              <p className="text-zinc-500">Gerado em {new Date(selectedBackup.exportedAt).toLocaleString('pt-BR')}</p>
+              <p className="text-zinc-500">
+                Gerado em {new Date(selectedBackup.exportedAt).toLocaleString("pt-BR")}
+              </p>
+              <p className="text-zinc-500">
+                {selectedBackup.files.length} arquivo(s) físico(s) — {" "}
+                {(embeddedSize / 1024 / 1024).toLocaleString("pt-BR", {
+                  maximumFractionDigits: 2,
+                })}{" "}
+                MB
+              </p>
+              <p className="text-zinc-500">
+                {(selectedBackup.data.masterData as unknown[]).length} cadastro(s)
+                auxiliar(es)
+              </p>
               <button
-                onClick={handleRestore}
-                className="mt-2 w-full flex items-center justify-center gap-2 bg-[#C8102E] hover:bg-[#A90D25] text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
+                onClick={() => void handleRestore()}
+                disabled={isRestoring || isExporting}
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-[#C8102E] hover:bg-[#A90D25] disabled:opacity-50 disabled:cursor-wait text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
               >
-                <RefreshCw className="h-4 w-4" /> Confirmar restauração
+                <RefreshCw className="h-4 w-4" />
+                {isRestoring ? progress || "Restaurando..." : "Confirmar restauração"}
               </button>
             </div>
           )}
 
           {restored && (
             <div className="flex items-center gap-2 text-xs text-emerald-700 font-bold">
-              <CheckCircle2 className="h-4 w-4" /> Backup restaurado. Recarregando o sistema...
+              <CheckCircle2 className="h-4 w-4" /> Backup restaurado.
+              Recarregando o sistema...
             </div>
           )}
         </section>
