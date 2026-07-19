@@ -5,6 +5,7 @@ import { analyzeDocumentVisually } from "../services/documentAnalysis";
 import FileTypeIcon from "../components/FileTypeIcon";
 import DocumentPreview from "../components/DocumentPreview";
 import DocumentDownloadButton from "../components/DocumentDownloadButton";
+import { isDocumentDeliveredByBpo } from "../services/documentVisibility";
 import {
   Bot,
   Check,
@@ -165,7 +166,9 @@ export default function DocumentsView() {
   const [flowCompanyId, setFlowCompanyId] = useState("");
   const [flowRecipientId, setFlowRecipientId] = useState("");
   const [approvalRecipientId, setApprovalRecipientId] = useState("");
-  const [historyTab, setHistoryTab] = useState<"sent" | "received">(() =>
+  const [historyTab, setHistoryTab] = useState<
+    "sent" | "received" | "cancelled"
+  >(() =>
     ["CLIENT", "ACCOUNTANT"].includes(currentUser.role) ? "received" : "sent",
   );
   const [previewDocumentId, setPreviewDocumentId] = useState<string | null>(
@@ -176,6 +179,27 @@ export default function DocumentsView() {
   );
   const [maxDocumentSize, setMaxDocumentSize] = useState(20 * 1024 * 1024);
   const [persistentUploads, setPersistentUploads] = useState(false);
+
+  useEffect(() => {
+    setPending(null);
+    setIsAnalyzing(false);
+    setChatPrompt("");
+    setError("");
+    setEditingAnalysis(false);
+    setQueuedFile(null);
+    setBpoUploadMode(null);
+    setFlowCompanyId("");
+    setFlowRecipientId("");
+    setApprovalRecipientId("");
+    setPreviewDocumentId(null);
+    setSearch("");
+    setStatusFilter("ALL");
+    setHistoryTab(
+      ["CLIENT", "ACCOUNTANT"].includes(currentUser.role)
+        ? "received"
+        : "sent",
+    );
+  }, [currentUser.id, currentUser.role]);
 
   useEffect(() => {
     fetch("/api/documents/status")
@@ -216,7 +240,9 @@ export default function DocumentsView() {
         .filter(
           (document) =>
             document.companyId === activeCompany?.id &&
-            document.uploadedById === currentUser.id,
+            document.status !== "Cancelado" &&
+            document.uploadedById === currentUser.id &&
+            !isDocumentDeliveredByBpo(document, currentUser.id),
         )
         .sort(
           (first, second) =>
@@ -232,9 +258,26 @@ export default function DocumentsView() {
         .filter(
           (document) =>
             document.companyId === activeCompany?.id &&
-            document.recipientId === currentUser.id &&
-            (document.purpose === "VIEW_ONLY" ||
-              document.status === "Compartilhado"),
+            document.status !== "Cancelado" &&
+            isDocumentDeliveredByBpo(document, currentUser.id),
+        )
+        .sort(
+          (first, second) =>
+            new Date(second.sharedAt || second.uploadedAt).getTime() -
+            new Date(first.sharedAt || first.uploadedAt).getTime(),
+        ),
+    [activeCompany?.id, currentUser.id, documents],
+  );
+
+  const cancelledDocuments = useMemo(
+    () =>
+      documents
+        .filter(
+          (document) =>
+            document.companyId === activeCompany?.id &&
+            document.status === "Cancelado" &&
+            (document.uploadedById === currentUser.id ||
+              isDocumentDeliveredByBpo(document, currentUser.id)),
         )
         .sort(
           (first, second) =>
@@ -259,7 +302,11 @@ export default function DocumentsView() {
   );
 
   const historyDocuments =
-    historyTab === "sent" ? companyDocuments : receivedDocuments;
+    historyTab === "sent"
+      ? companyDocuments
+      : historyTab === "received"
+        ? receivedDocuments
+        : cancelledDocuments;
   const filteredDocuments = historyDocuments.filter((document) => {
     const query = search.toLocaleLowerCase("pt-BR");
     const matchesSearch =
@@ -573,9 +620,7 @@ export default function DocumentsView() {
   const pendingCount = companyDocuments.filter(
     (document) => document.status === "Aguardando Análise",
   ).length;
-  const rejectedCount = companyDocuments.filter(
-    (document) => document.status === "Cancelado",
-  ).length;
+  const rejectedCount = cancelledDocuments.length;
 
   return (
     <div className="space-y-6">
@@ -736,8 +781,10 @@ export default function DocumentsView() {
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-[#0B2C52] uppercase tracking-wider">
                   {historyTab === "received"
-                    ? "Documento compartilhado — somente visualização"
-                    : "Visualização do documento"}
+                    ? "Documento recebido"
+                    : historyTab === "cancelled"
+                      ? "Documento cancelado"
+                      : "Visualização do documento"}
                 </p>
                 <h3 className="text-sm font-bold text-zinc-900 truncate">
                   {previewDocument.name}
@@ -759,8 +806,11 @@ export default function DocumentsView() {
             </div>
             <div className="px-5 py-3 border-t border-zinc-200 flex justify-between items-center gap-3 text-xs">
               <span className="text-zinc-500 truncate">
-                {historyTab === "received"
-                  ? `Compartilhado por ${previewDocument.sharedByName || "Equipe BPO"}`
+                {isDocumentDeliveredByBpo(
+                  previewDocument,
+                  currentUser.id,
+                )
+                  ? `Enviado por ${previewDocument.sharedByName || "Equipe BPO"}`
                   : previewDocument.recipientName
                     ? `Compartilhado com ${previewDocument.recipientName}`
                     : "Documento do seu histórico"}
@@ -1189,9 +1239,11 @@ export default function DocumentsView() {
               <p className="text-[10px] text-zinc-500 mt-0.5">
                 {historyTab === "sent"
                   ? `Somente os documentos enviados por ${currentUser.name}.`
-                  : "Arquivos avulsos compartilhados pelo BPO somente para visualização."}
+                  : historyTab === "received"
+                    ? "Documentos enviados para este acesso."
+                    : "Documentos cancelados deste acesso."}
               </p>
-              <div className="grid grid-cols-2 gap-1 mt-3 bg-zinc-100 rounded-lg p-1">
+              <div className="grid grid-cols-3 gap-1 mt-3 bg-zinc-100 rounded-lg p-1">
                 <button
                   onClick={() => {
                     setHistoryTab("sent");
@@ -1210,7 +1262,17 @@ export default function DocumentsView() {
                   }}
                   className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "received" ? "bg-white text-[#0B2C52] shadow-sm" : "text-zinc-500"}`}
                 >
-                  Recebidos do BPO ({receivedDocuments.length})
+                  Recebidos ({receivedDocuments.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setHistoryTab("cancelled");
+                    setStatusFilter("ALL");
+                    setPreviewDocumentId(null);
+                  }}
+                  className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "cancelled" ? "bg-white text-rose-700 shadow-sm" : "text-zinc-500"}`}
+                >
+                  Cancelados ({cancelledDocuments.length})
                 </button>
               </div>
             </div>
@@ -1224,25 +1286,32 @@ export default function DocumentsView() {
                   className="w-full border border-zinc-200 rounded-lg pl-8 pr-2 py-2 text-xs"
                 />
               </div>
-              <div className="relative">
-                <Filter className="absolute left-2 top-2.5 h-3.5 w-3.5 text-zinc-400" />
-                <select
-                  value={statusFilter}
-                  onChange={(event) =>
-                    setStatusFilter(event.target.value as typeof statusFilter)
-                  }
-                  className="border border-zinc-200 rounded-lg pl-7 pr-2 py-2 text-xs bg-white"
-                >
-                  <option value="ALL">Todos</option>
-                  <option value="Aguardando Análise">Aguardando Análise</option>
-                  <option value="Aguardando Aprovação">
-                    Aguardando Aprovação
-                  </option>
-                  <option value="Compartilhado">Compartilhados</option>
-                  <option value="Lançado">Lançados</option>
-                  <option value="Cancelado">Cancelados</option>
-                </select>
-              </div>
+              {historyTab === "cancelled" ? (
+                <div className="flex items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+                  <X className="h-3.5 w-3.5" /> Somente cancelados
+                </div>
+              ) : (
+                <div className="relative">
+                  <Filter className="absolute left-2 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+                  <select
+                    value={statusFilter}
+                    onChange={(event) =>
+                      setStatusFilter(event.target.value as typeof statusFilter)
+                    }
+                    className="border border-zinc-200 rounded-lg pl-7 pr-2 py-2 text-xs bg-white"
+                  >
+                    <option value="ALL">Todos</option>
+                    <option value="Aguardando Análise">
+                      Aguardando Análise
+                    </option>
+                    <option value="Aguardando Aprovação">
+                      Aguardando Aprovação
+                    </option>
+                    <option value="Compartilhado">Compartilhados</option>
+                    <option value="Lançado">Lançados</option>
+                  </select>
+                </div>
+              )}
             </div>
             <div className="divide-y divide-zinc-100 max-h-[520px] overflow-y-auto">
               {filteredDocuments.map((document) => (
@@ -1272,11 +1341,16 @@ export default function DocumentsView() {
                       <p className="text-[9px] text-zinc-400 mt-1 flex items-center gap-1">
                         <Clock3 className="h-3 w-3" />{" "}
                         {new Date(
-                          historyTab === "received"
+                          isDocumentDeliveredByBpo(document, currentUser.id)
                             ? document.sharedAt || document.uploadedAt
                             : document.uploadedAt,
                         ).toLocaleString("pt-BR")}{" "}
-                        · {historyTab === "received" ? "recebido" : "este acesso"}
+                        ·{" "}
+                        {historyTab === "cancelled"
+                          ? "cancelado"
+                          : historyTab === "received"
+                            ? "recebido"
+                            : "este acesso"}
                       </p>
                       {historyTab === "sent" && document.recipientName && (
                         <p className="text-[9px] text-blue-600 mt-1">
@@ -1284,11 +1358,25 @@ export default function DocumentsView() {
                           {document.recipientName}
                         </p>
                       )}
-                      {historyTab === "received" && (
+                      {(historyTab === "received" ||
+                        (historyTab === "cancelled" &&
+                          isDocumentDeliveredByBpo(
+                            document,
+                            currentUser.id,
+                          ))) && (
                         <p className="text-[9px] text-blue-600 mt-1">
-                          Compartilhado por {document.sharedByName || "Equipe BPO"}
+                          Enviado pelo BPO: {document.sharedByName || "Equipe BPO"}
                         </p>
                       )}
+                      {historyTab === "cancelled" &&
+                        !isDocumentDeliveredByBpo(
+                          document,
+                          currentUser.id,
+                        ) && (
+                          <p className="text-[9px] text-zinc-500 mt-1">
+                            Enviado por este acesso
+                          </p>
+                        )}
                       <p className="text-[10px] text-zinc-500 mt-2 line-clamp-2">
                         {document.aiSummary || document.description}
                       </p>

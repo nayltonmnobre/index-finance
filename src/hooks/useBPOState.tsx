@@ -51,6 +51,7 @@ import {
   ReportCell,
   ReportTableData,
 } from "../services/reportFiles";
+import { getDocumentsVisibleToUser } from "../services/documentVisibility";
 
 const PRIMARY_USER_ID = "u-client-admin";
 const USER_STORAGE_VERSION = "professional-users-v2";
@@ -471,6 +472,20 @@ export function BPOProvider({ children }: { children: ReactNode }) {
             approval.requesterId === document.uploadedById) ||
             approval.recipientRole === "ACCOUNTANT"),
       );
+      const bpoDeliveryApproval = approvals.find((approval) => {
+        const requesterRole =
+          approval.requesterRole ||
+          users.find((user) => user.id === approval.requesterId)?.role;
+        return (
+          approval.type === "DOCUMENTO" &&
+          approval.relatedId === document.id &&
+          approval.recipientId === document.recipientId &&
+          ["BPO_ADMIN", "BPO_TEAM"].includes(requesterRole || "")
+        );
+      });
+      const bpoDeliveryRequesterRole =
+        bpoDeliveryApproval?.requesterRole ||
+        users.find((user) => user.id === bpoDeliveryApproval?.requesterId)?.role;
       const wasDirectApprovalFromPreviousRule = Boolean(previousDirectApproval);
       return {
         ...document,
@@ -482,22 +497,28 @@ export function BPOProvider({ children }: { children: ReactNode }) {
           (wasDirectApprovalFromPreviousRule ? "VIEW_ONLY" : "PROCESSING"),
         sharedById:
           document.sharedById ||
+          bpoDeliveryApproval?.requesterId ||
           (wasDirectApprovalFromPreviousRule
             ? previousDirectApproval?.requesterId
             : undefined),
         sharedByName:
           document.sharedByName ||
+          bpoDeliveryApproval?.requesterName ||
           (wasDirectApprovalFromPreviousRule
             ? previousDirectApproval?.requesterName
             : undefined),
         sharedByRole:
           document.sharedByRole ||
-          (wasDirectApprovalFromPreviousRule
+          (bpoDeliveryApproval
+            ? (bpoDeliveryRequesterRole as Document["sharedByRole"])
+            : wasDirectApprovalFromPreviousRule
             ? (previousDirectApproval?.requesterRole as Document["sharedByRole"])
             : undefined),
         sharedAt:
           document.sharedAt ||
-          (wasDirectApprovalFromPreviousRule
+          (bpoDeliveryApproval
+            ? bpoDeliveryApproval.createdAt
+            : wasDirectApprovalFromPreviousRule
             ? previousDirectApproval?.createdAt
             : undefined),
         signedUrl: document.signedUrl?.includes("bpo-storage.com")
@@ -731,6 +752,10 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   const activeTenant = activeCompany
     ? tenants.find((t) => t.id === activeCompany.tenantId) || null
     : null;
+  const documentsVisibleToCurrentUser = getDocumentsVisibleToUser(
+    documents,
+    currentUser,
+  );
 
   const switchCompany = (companyId: string) => {
     // Check if current user is authorized to view this company
@@ -1612,12 +1637,12 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       recipientId: recipient?.id,
       recipientName: recipient?.name,
       recipientRole: recipient?.role as Document["recipientRole"],
-      sharedById: shareRecipient ? currentUser.id : undefined,
-      sharedByName: shareRecipient ? currentUser.name : undefined,
-      sharedByRole: shareRecipient
+      sharedById: recipient ? currentUser.id : undefined,
+      sharedByName: recipient ? currentUser.name : undefined,
+      sharedByRole: recipient
         ? (currentUser.role as Document["sharedByRole"])
         : undefined,
-      sharedAt: shareRecipient ? new Date().toISOString() : undefined,
+      sharedAt: recipient ? new Date().toISOString() : undefined,
       hash: Math.random().toString(16).substr(2, 32),
       status: shareRecipient
         ? "Compartilhado"
@@ -3222,6 +3247,10 @@ export function BPOProvider({ children }: { children: ReactNode }) {
               recipientId: recipient.id,
               recipientName: recipient.name,
               recipientRole: recipient.role as Document["recipientRole"],
+              sharedById: currentUser.id,
+              sharedByName: currentUser.name,
+              sharedByRole: currentUser.role as Document["sharedByRole"],
+              sharedAt: approval.createdAt,
             }
           : item,
       ),
@@ -3657,7 +3686,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         accountsPayable,
         accountsReceivable,
         approvals,
-        documents,
+        documents: documentsVisibleToCurrentUser,
         auditLogs,
         notifications,
         reports,
