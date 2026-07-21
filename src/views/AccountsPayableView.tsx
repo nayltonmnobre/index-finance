@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
-import { AccountPayable } from "../types";
+import { AccountPayable, MasterDataOption, MasterDataType } from "../types";
 import {
   Plus,
   Search,
@@ -33,6 +33,111 @@ const getRemaining = (ap: AccountPayable) =>
 
 type PanelTab = "info" | "payment" | "attachments" | "history";
 
+// Select de cadastro (fornecedor, categoria, centro de custo...) com opção de
+// cadastrar um novo item sem sair da tela.
+function QuickAddSelect({
+  label,
+  required,
+  value,
+  onChange,
+  options,
+  onAdd,
+  className,
+}: {
+  label: string;
+  required?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  options: MasterDataOption[];
+  onAdd: (name: string) => void;
+  className?: string;
+}) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const confirmAdd = () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    onAdd(trimmed);
+    onChange(trimmed);
+    setNewName("");
+    setIsAdding(false);
+  };
+
+  return (
+    <div className={`space-y-1 ${className || ""}`}>
+      <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+        {label} {required && "*"}
+      </label>
+      {isAdding ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            autoFocus
+            type="text"
+            placeholder="Nome do novo cadastro..."
+            className="w-full p-2 text-xs bg-white border border-[#0B2C52] rounded-lg focus:outline-none"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                confirmAdd();
+              }
+              if (event.key === "Escape") {
+                setIsAdding(false);
+                setNewName("");
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={confirmAdd}
+            title="Salvar novo cadastro"
+            className="p-2 bg-[#0B2C52] hover:bg-[#0B2C52]/90 text-white rounded-lg cursor-pointer shrink-0"
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAdding(false);
+              setNewName("");
+            }}
+            title="Cancelar"
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-600 rounded-lg cursor-pointer shrink-0"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <select
+            required={required}
+            className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+          >
+            <option value="">Selecione...</option>
+            {options.map((item) => (
+              <option key={item.id} value={item.name}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setIsAdding(true)}
+            title="Cadastrar novo"
+            className="p-2 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded-lg cursor-pointer text-zinc-700 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AccountsPayableView({
   onNavigate,
 }: {
@@ -50,8 +155,9 @@ export default function AccountsPayableView({
     currentUser,
     hasPermission,
     masterData,
+    addMasterData,
   } = useBPOState();
-  const masterOptions = (type: string) =>
+  const masterOptions = (type: MasterDataType) =>
     masterData.filter(
       (item) =>
         item.companyId === activeCompany?.id &&
@@ -116,8 +222,9 @@ export default function AccountsPayableView({
   const [paymentMethod, setPaymentMethod] = useState("Boleto Bancário");
   const [bankAccountId, setBankAccountId] = useState("");
   const [recurrence, setRecurrence] = useState<
-    "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual"
+    "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual" | "Parcelada"
   >("Nenhuma");
+  const [installmentCount, setInstallmentCount] = useState("2");
   const [documentNumber, setDocumentNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [attachmentName, setAttachmentName] = useState("");
@@ -131,6 +238,13 @@ export default function AccountsPayableView({
     (ap) => ap.companyId === activeCompany.id,
   );
   const selected = companyPayables.find((ap) => ap.id === selectedId) || null;
+  // Baseado no saldo em aberto (não no campo "Valor a pagar") para não compor
+  // os juros/multa/desconto a cada clique em "Usar este valor".
+  const payFinalTotal =
+    (selected ? getRemaining(selected) : 0) +
+    (Number(payInterest) || 0) +
+    (Number(payPenalty) || 0) -
+    (Number(payDiscount) || 0);
   const today = new Date().toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
 
@@ -149,7 +263,7 @@ export default function AccountsPayableView({
 
   const payableMetrics = [
     {
-      label: "Vencidos",
+      label: "Em Atraso",
       amount: sumRemaining(overduePayables),
       count: overduePayables.length,
     },
@@ -249,6 +363,7 @@ export default function AccountsPayableView({
     setPaymentMethod("Boleto Bancário");
     setBankAccountId(accounts[0]?.id || "");
     setRecurrence("Nenhuma");
+    setInstallmentCount("2");
     setDocumentNumber("");
     setNotes("");
     setAttachmentName("");
@@ -275,6 +390,10 @@ export default function AccountsPayableView({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (recurrence === "Parcelada" && Number(installmentCount) < 2) {
+      alert("Informe pelo menos 2 parcelas ou escolha outra recorrência.");
+      return;
+    }
     addAccountPayable({
       description,
       supplier,
@@ -290,6 +409,7 @@ export default function AccountsPayableView({
       paymentMethod,
       bankAccountId: bankAccountId || accounts[0]?.id,
       recurrence,
+      installmentCount: recurrence === "Parcelada" ? Number(installmentCount) : undefined,
       documentNumber,
       notes,
       attachmentName: attachmentName || undefined,
@@ -624,63 +744,33 @@ export default function AccountsPayableView({
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">
-                      Fornecedor / Beneficiário *
-                    </label>
-                    <select
-                      required
-                      className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                      value={supplier}
-                      onChange={(e) => setSupplier(e.target.value)}
-                    >
-                      <option value="">Selecione...</option>
-                      {masterOptions("SUPPLIER").map((item) => (
-                        <option key={item.id} value={item.name}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <QuickAddSelect
+                    label="Fornecedor / Beneficiário"
+                    required
+                    value={supplier}
+                    onChange={setSupplier}
+                    options={masterOptions("SUPPLIER")}
+                    onAdd={(name) => addMasterData("SUPPLIER", name)}
+                  />
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">
-                        Categoria de Plano *
-                      </label>
-                      <select
-                        required
-                        className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none cursor-pointer"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                      >
-                        <option value="">Selecione...</option>
-                        {masterOptions("CATEGORY").map((item) => (
-                          <option key={item.id} value={item.name}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <QuickAddSelect
+                      label="Categoria de Plano"
+                      required
+                      value={category}
+                      onChange={setCategory}
+                      options={masterOptions("CATEGORY")}
+                      onAdd={(name) => addMasterData("CATEGORY", name)}
+                    />
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">
-                        Centro de Custo *
-                      </label>
-                      <select
-                        required
-                        className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none cursor-pointer"
-                        value={costCenter}
-                        onChange={(e) => setCostCenter(e.target.value)}
-                      >
-                        <option value="">Selecione...</option>
-                        {masterOptions("COST_CENTER").map((item) => (
-                          <option key={item.id} value={item.name}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <QuickAddSelect
+                      label="Centro de Custo"
+                      required
+                      value={costCenter}
+                      onChange={setCostCenter}
+                      options={masterOptions("COST_CENTER")}
+                      onAdd={(name) => addMasterData("COST_CENTER", name)}
+                    />
                   </div>
                 </div>
               )}
@@ -811,22 +901,13 @@ export default function AccountsPayableView({
               {formStep === 3 && (
                 <div className="space-y-4 animate-in slide-in-from-right-5 duration-150">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">
-                        Método Pagamento
-                      </label>
-                      <select
-                        className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
-                        value={paymentMethod}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                      >
-                        {masterOptions("PAYMENT_METHOD").map((item) => (
-                          <option key={item.id} value={item.name}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <QuickAddSelect
+                      label="Método Pagamento"
+                      value={paymentMethod}
+                      onChange={setPaymentMethod}
+                      options={masterOptions("PAYMENT_METHOD")}
+                      onAdd={(name) => addMasterData("PAYMENT_METHOD", name)}
+                    />
 
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-zinc-500 uppercase block">
@@ -858,6 +939,7 @@ export default function AccountsPayableView({
                         onChange={(e) => setRecurrence(e.target.value as any)}
                       >
                         <option value="Nenhuma">Nenhuma / Único</option>
+                        <option value="Parcelada">Parcelada</option>
                         <option value="Semanal">Semanal</option>
                         <option value="Mensal">Mensal</option>
                         <option value="Trimestral">Trimestral</option>
@@ -878,6 +960,39 @@ export default function AccountsPayableView({
                       />
                     </div>
                   </div>
+
+                  {recurrence === "Parcelada" && (
+                    <div className="p-3 bg-[#0B2C52]/5 border border-[#0B2C52]/20 rounded-lg space-y-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Quantidade de parcelas
+                        </label>
+                        <input
+                          type="number"
+                          min={2}
+                          step={1}
+                          className="w-full p-2 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none"
+                          value={installmentCount}
+                          onChange={(e) => setInstallmentCount(e.target.value)}
+                        />
+                      </div>
+                      {Number(installmentCount) >= 2 && (
+                        <p className="text-[10px] text-[#0B2C52] font-semibold">
+                          {installmentCount}x de aprox.{" "}
+                          {formatBRL(
+                            (Number(amount) +
+                              Number(interest) +
+                              Number(penalty) -
+                              Number(discount)) /
+                              Number(installmentCount),
+                          )}{" "}
+                          — 1ª parcela em{" "}
+                          {new Date(dueDate).toLocaleDateString("pt-BR")}, as
+                          demais nos meses seguintes.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-zinc-500 uppercase block">
@@ -997,6 +1112,11 @@ export default function AccountsPayableView({
                     >
                       <td className="p-4 font-semibold text-zinc-900">
                         {ap.description}
+                        {ap.installmentCount && (
+                          <span className="ml-1.5 text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full align-middle">
+                            {ap.installmentNumber}/{ap.installmentCount}
+                          </span>
+                        )}
                         <div className="text-[10px] text-zinc-400 font-normal">
                           Nº: {ap.documentNumber || "N/A"} | Cat: {ap.category}
                         </div>
@@ -1168,6 +1288,9 @@ export default function AccountsPayableView({
                       ["Fornecedor", selected.supplier],
                       ["Nº Documento", selected.documentNumber || "N/A"],
                       ["Descrição", selected.description],
+                      ...(selected.installmentCount
+                        ? ([["Parcela", `${selected.installmentNumber} de ${selected.installmentCount}`]] as [string, string][])
+                        : []),
                       ["Vencimento", new Date(selected.dueDate).toLocaleDateString("pt-BR")],
                       ["Emissão", new Date(selected.issueDate).toLocaleDateString("pt-BR")],
                       ["Categoria", selected.category],
@@ -1178,7 +1301,7 @@ export default function AccountsPayableView({
                       ["Descontos", formatBRL(selected.discount)],
                       ["Valor Total", formatBRL(selected.finalAmount)],
                       ...(selected.paidAmount
-                        ? ([["Já pago", formatBRL(selected.paidAmount)], ["Saldo em aberto", formatBRL(getRemaining(selected))]] as [string, string][])
+                        ? ([["Valor Pago", formatBRL(selected.paidAmount)], ["Saldo em aberto", formatBRL(getRemaining(selected))]] as [string, string][])
                         : []),
                       ["Observação", selected.notes || "—"],
                     ].map(([label, value]) => (
@@ -1232,46 +1355,31 @@ export default function AccountsPayableView({
                       onChange={(e) => setEditDescription(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">Fornecedor *</label>
-                    <select
-                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
-                      value={editSupplier}
-                      onChange={(e) => setEditSupplier(e.target.value)}
-                    >
-                      <option value="">Selecione...</option>
-                      {masterOptions("SUPPLIER").map((item) => (
-                        <option key={item.id} value={item.name}>{item.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <QuickAddSelect
+                    label="Fornecedor"
+                    required
+                    value={editSupplier}
+                    onChange={setEditSupplier}
+                    options={masterOptions("SUPPLIER")}
+                    onAdd={(name) => addMasterData("SUPPLIER", name)}
+                  />
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Categoria *</label>
-                      <select
-                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
-                        value={editCategory}
-                        onChange={(e) => setEditCategory(e.target.value)}
-                      >
-                        <option value="">Selecione...</option>
-                        {masterOptions("CATEGORY").map((item) => (
-                          <option key={item.id} value={item.name}>{item.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Centro de Custo *</label>
-                      <select
-                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
-                        value={editCostCenter}
-                        onChange={(e) => setEditCostCenter(e.target.value)}
-                      >
-                        <option value="">Selecione...</option>
-                        {masterOptions("COST_CENTER").map((item) => (
-                          <option key={item.id} value={item.name}>{item.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <QuickAddSelect
+                      label="Categoria"
+                      required
+                      value={editCategory}
+                      onChange={setEditCategory}
+                      options={masterOptions("CATEGORY")}
+                      onAdd={(name) => addMasterData("CATEGORY", name)}
+                    />
+                    <QuickAddSelect
+                      label="Centro de Custo"
+                      required
+                      value={editCostCenter}
+                      onChange={setEditCostCenter}
+                      options={masterOptions("COST_CENTER")}
+                      onAdd={(name) => addMasterData("COST_CENTER", name)}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
@@ -1419,7 +1527,7 @@ export default function AccountsPayableView({
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Valor a pagar agora (R$) *</label>
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Valor a pagar (R$) *</label>
                         <input
                           type="number"
                           step="0.01"
@@ -1429,7 +1537,7 @@ export default function AccountsPayableView({
                         />
                         {Number(payAmount) > 0 && Number(payAmount) < getRemaining(selected) && (
                           <p className="text-[10px] text-cyan-700 font-semibold">
-                            Pagamento parcial: o título continuará pendente pelo restante.
+                            Pagamento parcial
                           </p>
                         )}
                       </div>
@@ -1466,6 +1574,28 @@ export default function AccountsPayableView({
                           />
                         </div>
                       </div>
+
+                      {(Number(payInterest) > 0 || Number(payPenalty) > 0 || Number(payDiscount) > 0) && (
+                        <div className="bg-[#0B2C52]/5 border border-[#0B2C52]/20 rounded-lg p-3 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold text-[#0B2C52] uppercase block">
+                              Valor final (com juros/multa/desconto)
+                            </span>
+                            <span className="text-lg font-black text-[#0B2C52]">
+                              {formatBRL(payFinalTotal)}
+                            </span>
+                          </div>
+                          {Number(payAmount) !== payFinalTotal && (
+                            <button
+                              type="button"
+                              onClick={() => setPayAmount(payFinalTotal.toFixed(2))}
+                              className="text-[10px] font-bold text-[#0B2C52] hover:underline cursor-pointer shrink-0"
+                            >
+                              Usar este valor
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-zinc-500 uppercase block">Data do pagamento</label>

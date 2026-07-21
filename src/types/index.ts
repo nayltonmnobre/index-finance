@@ -131,7 +131,12 @@ export interface AccountPayable {
   finalAmount: number;
   paymentMethod: string;
   bankAccountId: string;
-  recurrence: "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual";
+  recurrence: "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual" | "Parcelada";
+  // Preenchidos quando recurrence === "Parcelada": ligam as parcelas da
+  // mesma compra e identificam a posição de cada uma.
+  installmentGroupId?: string;
+  installmentNumber?: number;
+  installmentCount?: number;
   documentNumber: string;
   notes: string;
   attachmentUrl?: string;
@@ -175,7 +180,12 @@ export interface AccountReceivable {
   receivedAmount: number;
   paymentMethod: string;
   bankAccountId: string;
-  recurrence: "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual";
+  recurrence: "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual" | "Parcelada";
+  // Preenchidos quando recurrence === "Parcelada": ligam as parcelas da
+  // mesma venda/fatura e identificam a posição de cada uma.
+  installmentGroupId?: string;
+  installmentNumber?: number;
+  installmentCount?: number;
   documentNumber: string;
   notes: string;
   attachmentUrl?: string;
@@ -294,7 +304,8 @@ export interface Document {
   bankAccountId?: string;
   destinationBankAccountId?: string;
   paymentMethod?: string;
-  recurrence?: "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual";
+  recurrence?: "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual" | "Parcelada";
+  installmentCount?: number;
   notes?: string;
   origin?: "Manual" | "Documento";
   launchedById?: string;

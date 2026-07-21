@@ -63,6 +63,76 @@ const LEGACY_DEMO_USER_IDS = new Set([
   "u-accountant",
 ]);
 
+// Soma meses a uma data "YYYY-MM-DD" preservando o dia quando possível
+// (ex.: 31/01 + 1 mês -> 28 ou 29/02, nunca estoura para março).
+const addMonthsToDateString = (dateStr: string, months: number): string => {
+  const date = new Date(`${dateStr}T00:00:00`);
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  const lastDayOfMonth = new Date(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    0,
+  ).getDate();
+  date.setDate(Math.min(day, lastDayOfMonth));
+  return date.toISOString().slice(0, 10);
+};
+
+interface InstallmentSlice {
+  amount: number;
+  dueDate: string;
+  competenceMonth: string;
+  descriptionSuffix: string;
+  installmentGroupId?: string;
+  installmentNumber?: number;
+  installmentCount?: number;
+}
+
+// Divide um valor total em N parcelas mensais a partir do vencimento
+// informado. Usa centavos para não perder/sobrar dinheiro por arredondamento
+// — o resto (se houver) fica nas primeiras parcelas. Quando a recorrência
+// não é "Parcelada" (ou não há quantidade válida), devolve uma única fatia
+// idêntica ao valor total, sem nenhum metadado de parcelamento.
+const buildInstallmentSlices = (
+  totalAmount: number,
+  dueDate: string,
+  competenceMonth: string,
+  recurrence: string,
+  installmentCountInput?: number,
+): InstallmentSlice[] => {
+  const isPlan = recurrence === "Parcelada" && Number(installmentCountInput) > 1;
+  const count = isPlan ? Math.floor(Number(installmentCountInput)) : 1;
+  if (!isPlan) {
+    return [
+      {
+        amount: totalAmount,
+        dueDate,
+        competenceMonth,
+        descriptionSuffix: "",
+      },
+    ];
+  }
+
+  const groupId = `grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const totalCents = Math.round(totalAmount * 100);
+  const baseCents = Math.floor(totalCents / count);
+  const remainderCents = totalCents - baseCents * count;
+
+  return Array.from({ length: count }, (_, index) => {
+    const sliceDueDate = addMonthsToDateString(dueDate, index);
+    return {
+      amount: (baseCents + (index < remainderCents ? 1 : 0)) / 100,
+      dueDate: sliceDueDate,
+      competenceMonth: sliceDueDate.slice(0, 7),
+      descriptionSuffix: ` (Parcela ${index + 1}/${count})`,
+      installmentGroupId: groupId,
+      installmentNumber: index + 1,
+      installmentCount: count,
+    };
+  });
+};
+
 const createDocumentApproval = (
   document: Document,
   requesterRole?: UserRole,
@@ -217,7 +287,14 @@ interface BPOContextType {
   addAccountPayable: (
     data: Omit<
       AccountPayable,
-      "id" | "companyId" | "createdAt" | "updatedAt" | "finalAmount" | "status"
+      | "id"
+      | "companyId"
+      | "createdAt"
+      | "updatedAt"
+      | "finalAmount"
+      | "status"
+      | "installmentGroupId"
+      | "installmentNumber"
     >,
   ) => void;
   updateAccountPayable: (
@@ -247,6 +324,8 @@ interface BPOContextType {
       | "updatedAt"
       | "receivedAmount"
       | "status"
+      | "installmentGroupId"
+      | "installmentNumber"
     >,
   ) => void;
   updateAccountReceivable: (
@@ -1154,90 +1233,122 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   };
 
   // --- ACCOUNTS PAYABLE ACTIONS ---
-  const addAccountPayable = (
-    data: Omit<
-      AccountPayable,
-      "id" | "companyId" | "createdAt" | "updatedAt" | "finalAmount" | "status"
-    >,
-  ) => {
+  const addAccountPayable: BPOContextType["addAccountPayable"] = (data) => {
     if (!hasPermission("accounts-payable.create")) return;
 
-    const id = `ap-${Date.now()}`;
-    const finalAmount =
+    const baseFinalAmount =
       Number(data.amount) +
       Number(data.interest) +
       Number(data.penalty) -
       Number(data.discount);
-
-    // Check if it requires approval (either explicitly set or if final amount exceeds active company approval limit)
     const limit = activeCompany?.approvalLimit || 5000;
-    const needsApproval = data.needsApproval || finalAmount >= limit;
-    const status = needsApproval ? "Aguardando aprovação" : "A vencer";
 
-    const newPayable: AccountPayable = {
-      ...data,
-      id,
-      companyId: activeCompanyId,
-      amount: Number(data.amount),
-      interest: Number(data.interest),
-      penalty: Number(data.penalty),
-      discount: Number(data.discount),
-      finalAmount,
-      status,
-      needsApproval,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setAccountsPayable((prev) => [...prev, newPayable]);
-    createAuditLog(
-      "CRIAR_CONTA_PAGAR",
-      "AccountPayable",
-      id,
-      activeCompanyId,
-      null,
-      newPayable,
+    const slices = buildInstallmentSlices(
+      baseFinalAmount,
+      data.dueDate,
+      data.competenceMonth,
+      data.recurrence,
+      data.installmentCount,
     );
+    const isInstallmentPlan = slices.length > 1;
 
-    if (needsApproval) {
-      // Create an approval request
-      const approvalId = `apv-${Date.now()}`;
-      const newApproval: Approval = {
-        id: approvalId,
+    const newPayables: AccountPayable[] = [];
+    const newApprovals: Approval[] = [];
+
+    slices.forEach((slice, index) => {
+      const description = `${data.description}${slice.descriptionSuffix}`;
+      const id = `ap-${Date.now()}-${index}`;
+      const needsApproval = isInstallmentPlan
+        ? slice.amount >= limit
+        : data.needsApproval || baseFinalAmount >= limit;
+      const status = needsApproval ? "Aguardando aprovação" : "A vencer";
+
+      const newPayable: AccountPayable = {
+        ...data,
+        id,
         companyId: activeCompanyId,
-        type: "PAGAMENTO",
-        relatedId: id,
-        description: data.description,
-        amount: finalAmount,
-        dueDate: data.dueDate,
-        requesterId: currentUser.id,
-        requesterName: currentUser.name,
-        dueDateApproval: data.dueDate,
-        status: "Pendente",
-        attachmentName: data.attachmentName,
-        attachmentUrl: data.attachmentUrl,
+        description,
+        dueDate: slice.dueDate,
+        competenceMonth: slice.competenceMonth,
+        amount: isInstallmentPlan ? slice.amount : Number(data.amount),
+        interest: isInstallmentPlan ? 0 : Number(data.interest),
+        penalty: isInstallmentPlan ? 0 : Number(data.penalty),
+        discount: isInstallmentPlan ? 0 : Number(data.discount),
+        finalAmount: slice.amount,
+        status,
+        needsApproval,
+        installmentGroupId: slice.installmentGroupId,
+        installmentNumber: slice.installmentNumber,
+        installmentCount: slice.installmentCount,
         createdAt: new Date().toISOString(),
-        history: [],
+        updatedAt: new Date().toISOString(),
       };
-      setApprovals((prev) => [...prev, newApproval]);
+      newPayables.push(newPayable);
+
+      if (needsApproval) {
+        const approvalId = `apv-${Date.now()}-${index}`;
+        newApprovals.push({
+          id: approvalId,
+          companyId: activeCompanyId,
+          type: "PAGAMENTO",
+          relatedId: id,
+          description,
+          amount: slice.amount,
+          dueDate: slice.dueDate,
+          requesterId: currentUser.id,
+          requesterName: currentUser.name,
+          dueDateApproval: slice.dueDate,
+          status: "Pendente",
+          attachmentName: data.attachmentName,
+          attachmentUrl: data.attachmentUrl,
+          createdAt: new Date().toISOString(),
+          history: [],
+        });
+      }
+    });
+
+    setAccountsPayable((prev) => [...prev, ...newPayables]);
+    newPayables.forEach((payable) =>
       createAuditLog(
-        "SOLICITAR_APROVACAO",
-        "Approval",
-        approvalId,
+        "CRIAR_CONTA_PAGAR",
+        "AccountPayable",
+        payable.id,
         activeCompanyId,
         null,
-        newApproval,
-      );
+        payable,
+      ),
+    );
 
+    if (newApprovals.length > 0) {
+      setApprovals((prev) => [...prev, ...newApprovals]);
+      newApprovals.forEach((approval) =>
+        createAuditLog(
+          "SOLICITAR_APROVACAO",
+          "Approval",
+          approval.id,
+          activeCompanyId,
+          null,
+          approval,
+        ),
+      );
+    }
+
+    if (isInstallmentPlan) {
+      addNotification(
+        "Compra Parcelada Cadastrada",
+        `${slices.length}x cadastradas para "${data.supplier}" — total de R$ ${baseFinalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}, 1ª parcela em ${new Date(data.dueDate).toLocaleDateString("pt-BR")}.${newApprovals.length > 0 ? ` ${newApprovals.length} parcela(s) aguardam aprovação.` : ""}`,
+        newApprovals.length > 0 ? "ALERT" : "INFO",
+      );
+    } else if (newApprovals.length > 0) {
       addNotification(
         "Solicitação de Aprovação",
-        `Novo pagamento de R$ ${finalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} cadastrado para "${data.supplier}" necessita de aprovação.`,
+        `Novo pagamento de R$ ${baseFinalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} cadastrado para "${data.supplier}" necessita de aprovação.`,
         "ALERT",
       );
     } else {
       addNotification(
         "Conta a Pagar Cadastrada",
-        `Nova conta para "${data.supplier}" no valor de R$ ${finalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} cadastrada como Pendente.`,
+        `Nova conta para "${data.supplier}" no valor de R$ ${baseFinalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} cadastrada como Pendente.`,
         "INFO",
       );
     }
@@ -1429,47 +1540,58 @@ export function BPOProvider({ children }: { children: ReactNode }) {
   };
 
   // --- ACCOUNTS RECEIVABLE ACTIONS ---
-  const addAccountReceivable = (
-    data: Omit<
-      AccountReceivable,
-      | "id"
-      | "companyId"
-      | "createdAt"
-      | "updatedAt"
-      | "receivedAmount"
-      | "status"
-    >,
+  const addAccountReceivable: BPOContextType["addAccountReceivable"] = (
+    data,
   ) => {
     if (!hasPermission("accounts-receivable.create")) return;
 
-    const id = `ar-${Date.now()}`;
-    const newReceivable: AccountReceivable = {
+    const totalAmount = Number(data.amount);
+    const slices = buildInstallmentSlices(
+      totalAmount,
+      data.dueDate,
+      data.competenceMonth,
+      data.recurrence,
+      data.installmentCount,
+    );
+    const isInstallmentPlan = slices.length > 1;
+
+    const newReceivables: AccountReceivable[] = slices.map((slice, index) => ({
       ...data,
-      id,
+      id: `ar-${Date.now()}-${index}`,
       companyId: activeCompanyId,
-      amount: Number(data.amount),
-      interest: Number(data.interest),
-      penalty: Number(data.penalty),
-      discount: Number(data.discount),
+      description: `${data.description}${slice.descriptionSuffix}`,
+      dueDate: slice.dueDate,
+      competenceMonth: slice.competenceMonth,
+      amount: isInstallmentPlan ? slice.amount : totalAmount,
+      interest: isInstallmentPlan ? 0 : Number(data.interest),
+      penalty: isInstallmentPlan ? 0 : Number(data.penalty),
+      discount: isInstallmentPlan ? 0 : Number(data.discount),
       receivedAmount: 0,
       status: "A receber",
+      installmentGroupId: slice.installmentGroupId,
+      installmentNumber: slice.installmentNumber,
+      installmentCount: slice.installmentCount,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+    }));
 
-    setAccountsReceivable((prev) => [...prev, newReceivable]);
-    createAuditLog(
-      "CRIAR_CONTA_RECEBER",
-      "AccountReceivable",
-      id,
-      activeCompanyId,
-      null,
-      newReceivable,
+    setAccountsReceivable((prev) => [...prev, ...newReceivables]);
+    newReceivables.forEach((receivable) =>
+      createAuditLog(
+        "CRIAR_CONTA_RECEBER",
+        "AccountReceivable",
+        receivable.id,
+        activeCompanyId,
+        null,
+        receivable,
+      ),
     );
 
     addNotification(
-      "Conta a Receber Lançada",
-      `Faturamento para "${data.customer}" no valor de R$ ${Number(data.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} lançado.`,
+      isInstallmentPlan ? "Faturamento Parcelado Lançado" : "Conta a Receber Lançada",
+      isInstallmentPlan
+        ? `${slices.length}x lançadas para "${data.customer}" — total de R$ ${totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}, 1ª parcela em ${new Date(data.dueDate).toLocaleDateString("pt-BR")}.`
+        : `Faturamento para "${data.customer}" no valor de R$ ${totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} lançado.`,
       "SUCCESS",
     );
   };
@@ -3248,25 +3370,39 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       document.status === "Compartilhado"
     )
       return;
-    const payableId = `ap-doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const payable: AccountPayable = {
-      id: payableId,
+
+    const dueDate = document.dueDate || document.uploadedAt.slice(0, 10);
+    const slices = buildInstallmentSlices(
+      document.amount || 0,
+      dueDate,
+      document.competenceMonth,
+      document.recurrence || "Nenhuma",
+      document.installmentCount,
+    );
+    const baseDescription =
+      document.description || document.aiSummary || document.name;
+
+    const payables: AccountPayable[] = slices.map((slice, index) => ({
+      id: `ap-doc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
       companyId: document.companyId,
-      description: document.description || document.aiSummary || document.name,
+      description: `${baseDescription}${slice.descriptionSuffix}`,
       supplier: document.supplier || "Fornecedor a confirmar",
       category: document.expenseType || document.category,
       costCenter: document.costCenter || "A classificar",
-      competenceMonth: document.competenceMonth,
+      competenceMonth: slice.competenceMonth,
       issueDate: document.uploadedAt.slice(0, 10),
-      dueDate: document.dueDate || document.uploadedAt.slice(0, 10),
-      amount: document.amount || 0,
+      dueDate: slice.dueDate,
+      amount: slice.amount,
       interest: 0,
       penalty: 0,
       discount: 0,
-      finalAmount: document.amount || 0,
+      finalAmount: slice.amount,
       paymentMethod: document.paymentMethod || "A definir",
       bankAccountId: document.bankAccountId || "",
       recurrence: document.recurrence || "Nenhuma",
+      installmentGroupId: slice.installmentGroupId,
+      installmentNumber: slice.installmentNumber,
+      installmentCount: slice.installmentCount,
       documentNumber: document.documentNumber || "",
       notes:
         document.notes || "Lançamento originado pela Central de Documentos.",
@@ -3277,8 +3413,9 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       needsApproval: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
-    setAccountsPayable((prev) => [...prev, payable]);
+    }));
+
+    setAccountsPayable((prev) => [...prev, ...payables]);
     setDocuments((prev) =>
       prev.map((item) =>
         item.id === documentId
@@ -3286,7 +3423,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
               ...item,
               ...updates,
               status: "Lançado",
-              relatedEntityId: payableId,
+              relatedEntityId: payables[0].id,
               launchedById: currentUser.id,
               launchedByName: currentUser.name,
               launchedAt: new Date().toISOString(),
@@ -3294,14 +3431,62 @@ export function BPOProvider({ children }: { children: ReactNode }) {
           : item,
       ),
     );
-    createAuditLog(
-      "LANCAR_DOCUMENTO_FINANCEIRO",
-      "AccountPayable",
-      payableId,
-      document.companyId,
-      null,
-      payable,
+    payables.forEach((payable) =>
+      createAuditLog(
+        "LANCAR_DOCUMENTO_FINANCEIRO",
+        "AccountPayable",
+        payable.id,
+        document.companyId,
+        null,
+        payable,
+      ),
     );
+  };
+
+  // Constrói uma ou várias (se recurrence === "Parcelada") AccountReceivable
+  // a partir de um documento/lançamento avulso do tipo "Conta a Receber".
+  // Compartilhado por launchDocument e createStandaloneLaunch.
+  const buildReceivablesFromDocumentLike = (
+    document: Document,
+    defaultNotes = "Lançamento originado pela Central de Documentos.",
+  ): AccountReceivable[] => {
+    const now = new Date().toISOString();
+    const dueDate = document.dueDate || now.slice(0, 10);
+    const slices = buildInstallmentSlices(
+      document.amount || 0,
+      dueDate,
+      document.competenceMonth,
+      document.recurrence || "Nenhuma",
+      document.installmentCount,
+    );
+    return slices.map((slice, index) => ({
+      id: `ar-doc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+      companyId: document.companyId,
+      description: `${document.description}${slice.descriptionSuffix}`,
+      customer: document.supplier || "Cliente a confirmar",
+      category: document.expenseType || document.category,
+      costCenter: document.costCenter || "A classificar",
+      competenceMonth: slice.competenceMonth,
+      issueDate: now.slice(0, 10),
+      dueDate: slice.dueDate,
+      amount: slice.amount,
+      interest: 0,
+      penalty: 0,
+      discount: 0,
+      receivedAmount: 0,
+      paymentMethod: document.paymentMethod || "A definir",
+      bankAccountId: document.bankAccountId || "",
+      recurrence: document.recurrence || "Nenhuma",
+      installmentGroupId: slice.installmentGroupId,
+      installmentNumber: slice.installmentNumber,
+      installmentCount: slice.installmentCount,
+      documentNumber: document.documentNumber || "",
+      notes: document.notes || defaultNotes,
+      status: "A receber",
+      responsibleId: currentUser.id,
+      createdAt: now,
+      updatedAt: now,
+    }));
   };
 
   const launchDocument = (id: string, updates: Partial<Document> = {}) => {
@@ -3357,35 +3542,9 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (document.entryType === "Conta a Receber") {
-      const receivableId = `ar-doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const receivables = buildReceivablesFromDocumentLike(document);
       const now = new Date().toISOString();
-      const receivable: AccountReceivable = {
-        id: receivableId,
-        companyId: document.companyId,
-        description: document.description,
-        customer: document.supplier || "Cliente a confirmar",
-        category: document.expenseType || document.category,
-        costCenter: document.costCenter || "A classificar",
-        competenceMonth: document.competenceMonth,
-        issueDate: now.slice(0, 10),
-        dueDate: document.dueDate || now.slice(0, 10),
-        amount: document.amount || 0,
-        interest: 0,
-        penalty: 0,
-        discount: 0,
-        receivedAmount: 0,
-        paymentMethod: document.paymentMethod || "A definir",
-        bankAccountId: document.bankAccountId || "",
-        recurrence: document.recurrence || "Nenhuma",
-        documentNumber: document.documentNumber || "",
-        notes:
-          document.notes || "Lançamento originado pela Central de Documentos.",
-        status: "A receber",
-        responsibleId: currentUser.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setAccountsReceivable((prev) => [...prev, receivable]);
+      setAccountsReceivable((prev) => [...prev, ...receivables]);
       setDocuments((prev) =>
         prev.map((item) =>
           item.id === id
@@ -3393,7 +3552,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
                 ...item,
                 ...updates,
                 status: "Lançado",
-                relatedEntityId: receivableId,
+                relatedEntityId: receivables[0].id,
                 launchedById: currentUser.id,
                 launchedByName: currentUser.name,
                 launchedAt: now,
@@ -3401,13 +3560,15 @@ export function BPOProvider({ children }: { children: ReactNode }) {
             : item,
         ),
       );
-      createAuditLog(
-        "LANCAR_DOCUMENTO_RECEBER",
-        "AccountReceivable",
-        receivableId,
-        document.companyId,
-        null,
-        receivable,
+      receivables.forEach((receivable) =>
+        createAuditLog(
+          "LANCAR_DOCUMENTO_RECEBER",
+          "AccountReceivable",
+          receivable.id,
+          document.companyId,
+          null,
+          receivable,
+        ),
       );
       return;
     }
@@ -3645,6 +3806,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       bankAccountId: data.bankAccountId,
       paymentMethod: data.paymentMethod,
       recurrence: data.recurrence || "Nenhuma",
+      installmentCount: data.installmentCount,
       notes: data.notes,
       origin: "Manual",
       launchedById: currentUser.id,
@@ -3653,47 +3815,27 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     };
     setDocuments((prev) => [...prev, document]);
     if (document.entryType === "Conta a Receber") {
-      const receivableId = `ar-manual-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      const receivable: AccountReceivable = {
-        id: receivableId,
-        companyId: activeCompanyId,
-        description: document.description,
-        customer: document.supplier || "Cliente a confirmar",
-        category: document.expenseType || document.category,
-        costCenter: document.costCenter || "A classificar",
-        competenceMonth: document.competenceMonth,
-        issueDate: now.slice(0, 10),
-        dueDate: document.dueDate || now.slice(0, 10),
-        amount: document.amount || 0,
-        interest: 0,
-        penalty: 0,
-        discount: 0,
-        receivedAmount: 0,
-        paymentMethod: document.paymentMethod || "A definir",
-        bankAccountId: document.bankAccountId || "",
-        recurrence: document.recurrence || "Nenhuma",
-        documentNumber: document.documentNumber || "",
-        notes: document.notes || "Lançamento avulso.",
-        status: "A receber",
-        responsibleId: currentUser.id,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setAccountsReceivable((prev) => [...prev, receivable]);
+      const receivables = buildReceivablesFromDocumentLike(
+        document,
+        "Lançamento avulso.",
+      );
+      setAccountsReceivable((prev) => [...prev, ...receivables]);
       setDocuments((prev) =>
         prev.map((item) =>
           item.id === documentId
-            ? { ...item, relatedEntityId: receivableId }
+            ? { ...item, relatedEntityId: receivables[0].id }
             : item,
         ),
       );
-      createAuditLog(
-        "CRIAR_CONTA_RECEBER_AVULSA",
-        "AccountReceivable",
-        receivableId,
-        activeCompanyId,
-        null,
-        receivable,
+      receivables.forEach((receivable) =>
+        createAuditLog(
+          "CRIAR_CONTA_RECEBER_AVULSA",
+          "AccountReceivable",
+          receivable.id,
+          activeCompanyId,
+          null,
+          receivable,
+        ),
       );
     } else if (document.entryType === "Transferência") {
       if (

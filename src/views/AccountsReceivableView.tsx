@@ -72,8 +72,9 @@ export default function AccountsReceivableView({
   const [paymentMethod, setPaymentMethod] = useState("Boleto Bancário");
   const [bankAccountId, setBankAccountId] = useState("");
   const [recurrence, setRecurrence] = useState<
-    "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual"
+    "Nenhuma" | "Semanal" | "Mensal" | "Trimestral" | "Anual" | "Parcelada"
   >("Nenhuma");
+  const [installmentCount, setInstallmentCount] = useState("2");
   const [documentNumber, setDocumentNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [attachmentName, setAttachmentName] = useState("");
@@ -104,7 +105,7 @@ export default function AccountsReceivableView({
       ).length,
     ],
     [
-      "Vencidos",
+      "Em Atraso",
       companyReceivables.filter(
         (item) =>
           item.status === "Vencido" ||
@@ -187,6 +188,7 @@ export default function AccountsReceivableView({
     setPaymentMethod("Boleto Bancário");
     setBankAccountId(accounts[0]?.id || "");
     setRecurrence("Nenhuma");
+    setInstallmentCount("2");
     setDocumentNumber("");
     setNotes("");
     setAttachmentName("");
@@ -205,6 +207,10 @@ export default function AccountsReceivableView({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (recurrence === "Parcelada" && Number(installmentCount) < 2) {
+      alert("Informe pelo menos 2 parcelas ou escolha outra recorrência.");
+      return;
+    }
     addAccountReceivable({
       description,
       customer,
@@ -220,6 +226,7 @@ export default function AccountsReceivableView({
       paymentMethod,
       bankAccountId: bankAccountId || accounts[0]?.id,
       recurrence,
+      installmentCount: recurrence === "Parcelada" ? Number(installmentCount) : undefined,
       documentNumber,
       notes,
       attachmentName: attachmentName || undefined,
@@ -272,15 +279,26 @@ export default function AccountsReceivableView({
           </p>
         </div>
 
-        {hasPermission("accounts-receivable.create") && (
-          <button
-            onClick={onNavigate}
-            className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#C8102E] hover:bg-[#8F071B] px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
-          >
-            <ArrowUpRight className="h-4 w-4" />
-            Ir para Lançamentos
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasPermission("accounts-receivable.create") && onNavigate && (
+            <button
+              onClick={onNavigate}
+              className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+            >
+              <ArrowUpRight className="h-4 w-4" />
+              Ir para Lançamentos
+            </button>
+          )}
+          {hasPermission("accounts-receivable.create") && (
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#C8102E] hover:bg-[#8F071B] px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus className="h-4 w-4" />
+              Nova conta a receber
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -389,7 +407,8 @@ export default function AccountsReceivableView({
                     <label className="text-[10px] font-bold text-zinc-500 block">
                       Descrição do Faturamento *
                     </label>
-                    <select
+                    <input
+                      type="text"
                       required
                       placeholder="Ex: Mensalidade Desenvolvimento de Software Julho"
                       className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg"
@@ -566,6 +585,55 @@ export default function AccountsReceivableView({
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 block">
+                      Recorrência
+                    </label>
+                    <select
+                      className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
+                      value={recurrence}
+                      onChange={(e) => setRecurrence(e.target.value as any)}
+                    >
+                      <option value="Nenhuma">Nenhuma / Único</option>
+                      <option value="Parcelada">Parcelada</option>
+                      <option value="Semanal">Semanal</option>
+                      <option value="Mensal">Mensal</option>
+                      <option value="Trimestral">Trimestral</option>
+                      <option value="Anual">Anual</option>
+                    </select>
+                  </div>
+
+                  {recurrence === "Parcelada" && (
+                    <div className="p-3 bg-[#0B2C52]/5 border border-[#0B2C52]/20 rounded-lg space-y-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          Quantidade de parcelas
+                        </label>
+                        <input
+                          type="number"
+                          min={2}
+                          step={1}
+                          className="w-full p-2 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none"
+                          value={installmentCount}
+                          onChange={(e) => setInstallmentCount(e.target.value)}
+                        />
+                      </div>
+                      {Number(installmentCount) >= 2 && (
+                        <p className="text-[10px] text-[#0B2C52] font-semibold">
+                          {installmentCount}x de aprox.{" "}
+                          R${" "}
+                          {(Number(amount) / Number(installmentCount)).toLocaleString(
+                            "pt-BR",
+                            { minimumFractionDigits: 2 },
+                          )}{" "}
+                          — 1ª parcela em{" "}
+                          {new Date(dueDate).toLocaleDateString("pt-BR")}, as
+                          demais nos meses seguintes.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-zinc-500 block">
@@ -746,6 +814,11 @@ export default function AccountsReceivableView({
                       </td>
                       <td className="p-4 font-semibold text-zinc-900">
                         {ar.description}
+                        {ar.installmentCount && (
+                          <span className="ml-1.5 text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-full align-middle">
+                            {ar.installmentNumber}/{ar.installmentCount}
+                          </span>
+                        )}
                         <div className="text-[10px] text-zinc-400 font-normal font-sans">
                           Nº Doc: {ar.documentNumber || "N/A"} | Categoria:{" "}
                           {ar.category}
@@ -911,6 +984,16 @@ export default function AccountsReceivableView({
                                     )?.bankName || "Itaú"}
                                   </span>
                                 </div>
+                                {ar.installmentCount && (
+                                  <div>
+                                    <span className="text-zinc-400 font-medium block text-[9px] uppercase">
+                                      Parcela
+                                    </span>
+                                    <span className="font-semibold text-zinc-800">
+                                      {ar.installmentNumber} de {ar.installmentCount}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 

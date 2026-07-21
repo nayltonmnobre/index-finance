@@ -52,6 +52,7 @@ const emptyLaunch = {
   destinationBankAccountId: "",
   paymentMethod: "",
   recurrence: "Nenhuma" as NonNullable<Document["recurrence"]>,
+  installmentCount: "2",
   competenceMonth: new Date().toISOString().slice(0, 7),
   notes: "",
 };
@@ -220,10 +221,18 @@ export default function DocumentsReceivedView() {
     companyDocuments.filter((item) => item.status === status).length;
   const submitStandalone = (event: React.FormEvent) => {
     event.preventDefault();
+    if (newLaunch.recurrence === "Parcelada" && Number(newLaunch.installmentCount) < 2) {
+      alert("Informe pelo menos 2 parcelas ou escolha outra recorrência.");
+      return;
+    }
     createStandaloneLaunch({
       ...newLaunch,
       amount: Number(newLaunch.amount),
       entryType: newLaunch.entryType,
+      installmentCount:
+        newLaunch.recurrence === "Parcelada"
+          ? Number(newLaunch.installmentCount)
+          : undefined,
     });
     setNewLaunchOpen(false);
     setNewLaunch(emptyLaunch);
@@ -540,12 +549,30 @@ export default function DocumentsReceivedView() {
                   }
                 >
                   <option>Nenhuma</option>
+                  <option>Parcelada</option>
                   <option>Semanal</option>
                   <option>Mensal</option>
                   <option>Trimestral</option>
                   <option>Anual</option>
                 </select>
               </Field>
+              {newLaunch.recurrence === "Parcelada" &&
+                newLaunch.entryType !== "Transferência" && (
+                  <Field label="Quantidade de parcelas" required>
+                    <input
+                      type="number"
+                      min={2}
+                      step={1}
+                      value={newLaunch.installmentCount}
+                      onChange={(e) =>
+                        setNewLaunch({
+                          ...newLaunch,
+                          installmentCount: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                )}
               <Field label="Competência" required>
                 <input
                   required
@@ -1108,6 +1135,7 @@ export default function DocumentsReceivedView() {
                         }
                       >
                         <option>Nenhuma</option>
+                        <option>Parcelada</option>
                         <option>Semanal</option>
                         <option>Mensal</option>
                         <option>Trimestral</option>
@@ -1122,6 +1150,20 @@ export default function DocumentsReceivedView() {
                       />
                     </Field>
                   </div>
+                  {value("recurrence") === "Parcelada" &&
+                    value("entryType") !== "Transferência" && (
+                      <Field label="Quantidade de parcelas" required>
+                        <input
+                          type="number"
+                          min={2}
+                          step={1}
+                          value={String(value("installmentCount") || 2)}
+                          onChange={(e) =>
+                            set("installmentCount", Number(e.target.value))
+                          }
+                        />
+                      </Field>
+                    )}
                   <Field label="Observações">
                     <textarea
                       rows={2}
