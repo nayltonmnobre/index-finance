@@ -223,6 +223,8 @@ export function BakeryCashProvider({ children }: { children: ReactNode }) {
 
     ensureBolsaAccount(activeCompany.id);
 
+    const previousShift = getLastClosedShiftForRegister(data.registerId);
+
     const shift: BakeryShift = {
       id: `bshift-${Date.now()}`,
       companyId: activeCompany.id,
@@ -236,6 +238,7 @@ export function BakeryCashProvider({ children }: { children: ReactNode }) {
       initialBalance: Number(data.initialBalance),
       openNote: data.openNote,
       initialBalanceJustification: data.initialBalanceJustification,
+      previousShiftFinalBalance: previousShift?.finalBalanceCounted,
       closeHistory: [],
     };
     setShifts((prev) => [...prev, shift]);

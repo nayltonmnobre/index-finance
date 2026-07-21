@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,22 +10,28 @@ import {
   Plus,
   Search,
   Filter,
-  Trash2,
   Check,
   AlertCircle,
-  Calendar,
-  DollarSign,
-  ChevronDown,
-  ChevronUp,
   Paperclip,
   CheckCircle,
-  FileCheck,
   Ban,
   Clock,
-  Briefcase,
   ExternalLink,
   ChevronRight,
+  X,
+  Pencil,
+  Landmark,
+  History,
+  Info,
 } from "lucide-react";
+
+const formatBRL = (value: number) =>
+  `R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+
+const getRemaining = (ap: AccountPayable) =>
+  Math.max(ap.finalAmount - (ap.paidAmount || 0), 0);
+
+type PanelTab = "info" | "payment" | "attachments" | "history";
 
 export default function AccountsPayableView({
   onNavigate,
@@ -37,6 +43,7 @@ export default function AccountsPayableView({
     bankAccounts,
     accountsPayable,
     addAccountPayable,
+    updateAccountPayable,
     payAccountPayable,
     scheduleAccountPayable,
     cancelAccountPayable,
@@ -55,8 +62,40 @@ export default function AccountsPayableView({
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  // Collapsible detailed panels for payments
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Side panel state
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [panelTab, setPanelTab] = useState<PanelTab>("info");
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [panelError, setPanelError] = useState("");
+
+  // Edit form state (Informações tab)
+  const [editDescription, setEditDescription] = useState("");
+  const [editSupplier, setEditSupplier] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editCostCenter, setEditCostCenter] = useState("");
+  const [editCompetenceMonth, setEditCompetenceMonth] = useState("");
+  const [editIssueDate, setEditIssueDate] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editAmount, setEditAmount] = useState("0");
+  const [editInterest, setEditInterest] = useState("0");
+  const [editPenalty, setEditPenalty] = useState("0");
+  const [editDiscount, setEditDiscount] = useState("0");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("");
+  const [editBankAccountId, setEditBankAccountId] = useState("");
+  const [editDocumentNumber, setEditDocumentNumber] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  // Payment form state (Pagamento tab)
+  const [payBankAccountId, setPayBankAccountId] = useState("");
+  const [payAmount, setPayAmount] = useState("0");
+  const [payInterest, setPayInterest] = useState("0");
+  const [payPenalty, setPayPenalty] = useState("0");
+  const [payDiscount, setPayDiscount] = useState("0");
+  const [payDate, setPayDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [payNotes, setPayNotes] = useState("");
+  const [payReceiptUrl, setPayReceiptUrl] = useState<string | undefined>();
 
   // Registration Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -91,45 +130,57 @@ export default function AccountsPayableView({
   const companyPayables = accountsPayable.filter(
     (ap) => ap.companyId === activeCompany.id,
   );
+  const selected = companyPayables.find((ap) => ap.id === selectedId) || null;
   const today = new Date().toISOString().slice(0, 10);
   const currentMonth = today.slice(0, 7);
+
+  const openPayables = companyPayables.filter(
+    (item) => !["Paga", "Cancelada"].includes(item.status),
+  );
+  const overduePayables = openPayables.filter((item) => item.dueDate < today);
+  const dueTodayPayables = openPayables.filter((item) => item.dueDate === today);
+  const upcomingPayables = openPayables.filter((item) => item.dueDate > today);
+  const paidThisMonthPayments = companyPayables.flatMap((item) =>
+    (item.paymentHistory || []).filter((p) => p.date.startsWith(currentMonth)),
+  );
+
+  const sumRemaining = (items: AccountPayable[]) =>
+    items.reduce((total, item) => total + getRemaining(item), 0);
+
   const payableMetrics = [
-    [
-      "A vencer",
-      companyPayables.filter(
-        (item) => item.status === "A vencer" && item.dueDate > today,
-      ).length,
-    ],
-    [
-      "Vencendo hoje",
-      companyPayables.filter(
-        (item) => item.status !== "Paga" && item.dueDate === today,
-      ).length,
-    ],
-    [
-      "Vencidas",
-      companyPayables.filter(
-        (item) =>
-          item.status === "Vencida" ||
-          (item.status !== "Paga" && item.dueDate < today),
-      ).length,
-    ],
-    [
-      "Aguardando aprovação",
-      companyPayables.filter((item) => item.status === "Aguardando aprovação")
+    {
+      label: "Vencidos",
+      amount: sumRemaining(overduePayables),
+      count: overduePayables.length,
+    },
+    {
+      label: "A vencer hoje",
+      amount: sumRemaining(dueTodayPayables),
+      count: dueTodayPayables.length,
+    },
+    {
+      label: "A vencer",
+      amount: sumRemaining(upcomingPayables),
+      count: upcomingPayables.length,
+    },
+    {
+      label: "Aguardando aprovação",
+      amount: sumRemaining(
+        companyPayables.filter((item) => item.status === "Aguardando aprovação"),
+      ),
+      count: companyPayables.filter((item) => item.status === "Aguardando aprovação")
         .length,
-    ],
-    [
-      "Agendadas",
-      companyPayables.filter((item) => item.status === "Agendada").length,
-    ],
-    [
-      "Pagas no mês",
-      companyPayables.filter(
-        (item) =>
-          item.status === "Paga" && item.paymentDate?.startsWith(currentMonth),
-      ).length,
-    ],
+    },
+    {
+      label: "Pagos (mês)",
+      amount: paidThisMonthPayments.reduce((sum, p) => sum + p.amount, 0),
+      count: paidThisMonthPayments.length,
+    },
+    {
+      label: "Total em aberto",
+      amount: sumRemaining(openPayables),
+      count: openPayables.length,
+    },
   ] as const;
 
   // Filter lists
@@ -159,6 +210,8 @@ export default function AccountsPayableView({
         return "bg-indigo-50 text-indigo-700 border-indigo-200";
       case "Paga":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      case "Parcialmente paga":
+        return "bg-cyan-50 text-cyan-700 border-cyan-200";
       case "Vencida":
         return "bg-rose-50 text-rose-700 border-rose-200";
       case "Rejeitada":
@@ -169,6 +222,17 @@ export default function AccountsPayableView({
         return "bg-zinc-50 text-zinc-600 border-zinc-200";
     }
   };
+
+  const canEdit = (ap: AccountPayable) =>
+    hasPermission("accounts-payable.update") &&
+    !["Paga", "Parcialmente paga", "Cancelada"].includes(ap.status);
+  const canPay = (ap: AccountPayable) =>
+    hasPermission("reconciliation.execute") &&
+    !["Paga", "Cancelada", "Aguardando aprovação"].includes(ap.status);
+  const canCancel = (ap: AccountPayable) =>
+    hasPermission("accounts-payable.cancel") &&
+    !["Paga", "Cancelada"].includes(ap.status) &&
+    !(ap.paymentHistory && ap.paymentHistory.length > 0);
 
   const resetForm = () => {
     setDescription("");
@@ -236,19 +300,161 @@ export default function AccountsPayableView({
     resetForm();
   };
 
-  const handlePay = (id: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    payAccountPayable(id, today);
+  const closePanel = () => {
+    setSelectedId(null);
+    setIsEditingInfo(false);
+    setPanelTab("info");
+    setPanelError("");
+  };
+
+  const openPanel = (ap: AccountPayable, tab: PanelTab, editMode = false) => {
+    setSelectedId(ap.id);
+    setPanelTab(tab);
+    setIsEditingInfo(editMode);
+    setPanelError("");
+    if (editMode) {
+      setEditDescription(ap.description);
+      setEditSupplier(ap.supplier);
+      setEditCategory(ap.category);
+      setEditCostCenter(ap.costCenter);
+      setEditCompetenceMonth(ap.competenceMonth);
+      setEditIssueDate(ap.issueDate);
+      setEditDueDate(ap.dueDate);
+      setEditAmount(String(ap.amount));
+      setEditInterest(String(ap.interest));
+      setEditPenalty(String(ap.penalty));
+      setEditDiscount(String(ap.discount));
+      setEditPaymentMethod(ap.paymentMethod);
+      setEditBankAccountId(ap.bankAccountId);
+      setEditDocumentNumber(ap.documentNumber);
+      setEditNotes(ap.notes);
+    }
+    if (tab === "payment") {
+      const remaining = getRemaining(ap);
+      setPayBankAccountId(ap.bankAccountId || accounts[0]?.id || "");
+      setPayAmount(remaining.toFixed(2));
+      setPayInterest("0");
+      setPayPenalty("0");
+      setPayDiscount("0");
+      setPayDate(new Date().toISOString().slice(0, 10));
+      setPayNotes("");
+      setPayReceiptUrl(undefined);
+    }
+  };
+
+  const handleRowClick = (ap: AccountPayable) => {
+    if (selectedId === ap.id) {
+      closePanel();
+    } else {
+      openPanel(ap, "info", false);
+    }
+  };
+
+  const startEditFromPanel = () => {
+    if (!selected) return;
+    openPanel(selected, "info", true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selected) return;
+    setPanelError("");
+    if (!editDescription || !editSupplier || !editCategory || !editCostCenter) {
+      setPanelError("Preencha os campos obrigatórios.");
+      return;
+    }
+    if (Number(editAmount) <= 0) {
+      setPanelError("O valor da conta deve ser maior que zero.");
+      return;
+    }
+    const result = updateAccountPayable(selected.id, {
+      description: editDescription,
+      supplier: editSupplier,
+      category: editCategory,
+      costCenter: editCostCenter,
+      competenceMonth: editCompetenceMonth,
+      issueDate: editIssueDate,
+      dueDate: editDueDate,
+      amount: Number(editAmount),
+      interest: Number(editInterest),
+      penalty: Number(editPenalty),
+      discount: Number(editDiscount),
+      paymentMethod: editPaymentMethod,
+      bankAccountId: editBankAccountId,
+      documentNumber: editDocumentNumber,
+      notes: editNotes,
+    });
+    if (!result.success) {
+      setPanelError(result.error || "Não foi possível salvar as alterações.");
+      return;
+    }
+    setIsEditingInfo(false);
+  };
+
+  const handleConfirmPayment = () => {
+    if (!selected) return;
+    setPanelError("");
+    if (!payBankAccountId) {
+      setPanelError("Selecione o banco que fará o pagamento.");
+      return;
+    }
+    if (!(Number(payAmount) > 0)) {
+      setPanelError("Informe um valor de pagamento válido.");
+      return;
+    }
+    const result = payAccountPayable({
+      id: selected.id,
+      date: payDate,
+      bankAccountId: payBankAccountId,
+      amount: Number(payAmount),
+      interest: Number(payInterest) || 0,
+      penalty: Number(payPenalty) || 0,
+      discount: Number(payDiscount) || 0,
+      notes: payNotes || undefined,
+      receiptUrl: payReceiptUrl,
+    });
+    if (!result.success) {
+      setPanelError(result.error || "Não foi possível registrar o pagamento.");
+      return;
+    }
+    setPanelTab("history");
   };
 
   const handleCancel = (id: string) => {
     if (
-      window.confirm(
+      !window.confirm(
         "Deseja realmente cancelar este lançamento? O registro histórico será preservado para auditoria.",
       )
-    ) {
-      cancelAccountPayable(id);
+    )
+      return;
+    const result = cancelAccountPayable(id);
+    if (!result.success) {
+      alert(result.error || "Não foi possível cancelar este lançamento.");
+      return;
     }
+    if (selectedId === id) closePanel();
+  };
+
+  const handleAttachSimulated = () => {
+    if (!selected) return;
+    const result = updateAccountPayable(selected.id, {
+      attachmentName: "boleto_upload_simulado.pdf",
+      attachmentUrl: "#",
+    });
+    if (!result.success) {
+      setPanelError(result.error || "Não foi possível anexar o documento.");
+    }
+  };
+
+  const dueLabel = (ap: AccountPayable) => {
+    const diffDays = Math.round(
+      (new Date(ap.dueDate).getTime() - new Date(today).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    if (["Paga", "Cancelada"].includes(ap.status)) return null;
+    if (diffDays < 0)
+      return { text: `${Math.abs(diffDays)} dia${Math.abs(diffDays) === 1 ? "" : "s"} vencido`, tone: "text-rose-600" };
+    if (diffDays === 0) return { text: "Vence hoje", tone: "text-amber-600" };
+    return { text: `Vence em ${diffDays} dia${diffDays === 1 ? "" : "s"}`, tone: "text-zinc-500" };
   };
 
   return (
@@ -268,27 +474,43 @@ export default function AccountsPayableView({
           </p>
         </div>
 
-        {hasPermission("accounts-payable.create") && (
-          <button
-            onClick={onNavigate}
-            className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#C8102E] hover:bg-[#8F071B] px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
-          >
-            <ChevronRight className="h-4 w-4" />
-            Ir para Lançamentos
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasPermission("accounts-payable.create") && onNavigate && (
+            <button
+              onClick={onNavigate}
+              className="flex items-center gap-1.5 text-xs font-bold text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+            >
+              <ChevronRight className="h-4 w-4" />
+              Ir para Lançamentos
+            </button>
+          )}
+          {hasPermission("accounts-payable.create") && (
+            <button
+              onClick={() => setIsFormOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#C8102E] hover:bg-[#8F071B] px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+            >
+              <Plus className="h-4 w-4" />
+              Nova conta a pagar
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {payableMetrics.map(([label, count]) => (
+        {payableMetrics.map((metric) => (
           <div
-            key={label}
+            key={metric.label}
             className="bg-white rounded-xl border border-zinc-200 p-3"
           >
             <p className="text-[9px] text-zinc-500 font-bold uppercase">
-              {label}
+              {metric.label}
             </p>
-            <p className="text-xl font-black mt-1">{count}</p>
+            <p className="text-base font-black mt-1 text-zinc-900">
+              {formatBRL(metric.amount)}
+            </p>
+            <p className="text-[10px] text-zinc-400">
+              {metric.count} título{metric.count === 1 ? "" : "s"}
+            </p>
           </div>
         ))}
       </div>
@@ -318,6 +540,7 @@ export default function AccountsPayableView({
               <option value="A vencer">A vencer</option>
               <option value="Aguardando aprovação">Aguardando Aprovação</option>
               <option value="Agendada">Agendadas</option>
+              <option value="Parcialmente paga">Parcialmente pagas</option>
               <option value="Paga">Pagas</option>
               <option value="Vencida">Vencidas</option>
               <option value="Cancelada">Canceladas</option>
@@ -391,7 +614,8 @@ export default function AccountsPayableView({
                     <label className="text-[10px] font-bold text-zinc-500 uppercase block">
                       Descrição da Conta *
                     </label>
-                    <select
+                    <input
+                      type="text"
                       required
                       placeholder="Ex: Licença mensal Softwares ERP"
                       className="w-full p-2 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
@@ -564,20 +788,19 @@ export default function AccountsPayableView({
                   <div className="p-3 bg-zinc-50 rounded-lg text-[10px] text-zinc-500 font-medium">
                     Previsão de Valor Líquido Final:{" "}
                     <strong>
-                      R${" "}
-                      {(
+                      {formatBRL(
                         Number(amount) +
-                        Number(interest) +
-                        Number(penalty) -
-                        Number(discount)
-                      ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          Number(interest) +
+                          Number(penalty) -
+                          Number(discount),
+                      )}
                     </strong>
                     .<br />
                     {Number(amount) >= activeCompany.approvalLimit && (
                       <span className="text-amber-600">
-                        Este valor atinge ou excede o limite de aprovação (R${" "}
-                        {activeCompany.approvalLimit.toLocaleString("pt-BR")}) e
-                        exigirá autorização do cliente.
+                        Este valor atinge ou excede o limite de aprovação (
+                        {formatBRL(activeCompany.approvalLimit)}) e exigirá
+                        autorização do cliente.
                       </span>
                     )}
                   </div>
@@ -617,8 +840,7 @@ export default function AccountsPayableView({
                       >
                         {accounts.map((ba) => (
                           <option key={ba.id} value={ba.id}>
-                            {ba.bankName} - Saldo R${" "}
-                            {ba.balance.toLocaleString("pt-BR")}
+                            {ba.bankName} - Saldo {formatBRL(ba.balance)}
                           </option>
                         ))}
                       </select>
@@ -731,54 +953,48 @@ export default function AccountsPayableView({
         </div>
       )}
 
-      {/* Main Table view of accounts */}
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-200">
-                <th className="p-4 w-6"></th>
-                <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Lançamento
-                </th>
-                <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Fornecedor
-                </th>
-                <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Vencimento
-                </th>
-                <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">
-                  Valor Líquido
-                </th>
-                <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-center">
-                  Status
-                </th>
-                <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200 text-xs">
-              {filteredPayables.map((ap) => {
-                const isExpanded = expandedId === ap.id;
-                const isOverdue =
-                  new Date(ap.dueDate) < new Date() &&
-                  ap.status !== "Paga" &&
-                  ap.status !== "Cancelada";
+      {/* Main content: table + side panel */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        {/* Table */}
+        <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden flex-1 min-w-0 w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px] text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-200">
+                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                    Lançamento
+                  </th>
+                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                    Fornecedor
+                  </th>
+                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                    Vencimento
+                  </th>
+                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">
+                    Valor
+                  </th>
+                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-center">
+                    Status
+                  </th>
+                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider text-right">
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 text-xs">
+                {filteredPayables.map((ap) => {
+                  const isSelected = selectedId === ap.id;
+                  const isOverdue =
+                    new Date(ap.dueDate) < new Date() &&
+                    !["Paga", "Cancelada"].includes(ap.status);
+                  const remaining = getRemaining(ap);
 
-                return (
-                  <React.Fragment key={ap.id}>
+                  return (
                     <tr
-                      className={`hover:bg-zinc-50/50 transition-colors cursor-pointer ${isExpanded ? "bg-zinc-50/30" : ""}`}
-                      onClick={() => setExpandedId(isExpanded ? null : ap.id)}
+                      key={ap.id}
+                      className={`hover:bg-zinc-50/50 transition-colors cursor-pointer ${isSelected ? "bg-zinc-50/70" : ""}`}
+                      onClick={() => handleRowClick(ap)}
                     >
-                      <td className="p-4 text-center">
-                        {isExpanded ? (
-                          <ChevronUp className="h-4 w-4 text-zinc-500" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-zinc-500" />
-                        )}
-                      </td>
                       <td className="p-4 font-semibold text-zinc-900">
                         {ap.description}
                         <div className="text-[10px] text-zinc-400 font-normal">
@@ -798,11 +1014,15 @@ export default function AccountsPayableView({
                           </span>
                         )}
                       </td>
-                      <td className="p-4 text-right font-bold text-zinc-900 font-mono">
-                        R${" "}
-                        {ap.finalAmount.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
+                      <td className="p-4 text-right font-mono">
+                        <div className="font-bold text-zinc-900">
+                          {formatBRL(ap.finalAmount)}
+                        </div>
+                        {ap.status === "Parcialmente paga" && (
+                          <div className="text-[10px] text-cyan-700 font-semibold">
+                            Restam {formatBRL(remaining)}
+                          </div>
+                        )}
                       </td>
                       <td className="p-4 text-center">
                         <span
@@ -816,219 +1036,589 @@ export default function AccountsPayableView({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-2">
-                          {ap.status === "A vencer" && (
+                          {canPay(ap) && (
                             <button
-                              onClick={() => scheduleAccountPayable(ap.id)}
-                              className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-1 rounded border border-blue-200 cursor-pointer"
+                              onClick={() => openPanel(ap, "payment")}
+                              className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded border border-emerald-200 cursor-pointer flex items-center gap-1"
+                              title="Registrar pagamento (baixa)"
                             >
-                              Agendar
+                              <Check className="h-3 w-3" /> Pagar
                             </button>
                           )}
-                          {ap.status !== "Paga" &&
-                            ap.status !== "Cancelada" &&
-                            ap.status !== "Aguardando aprovação" &&
-                            hasPermission("reconciliation.execute") && (
-                              <button
-                                onClick={() => handlePay(ap.id)}
-                                className="text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-2 py-1 rounded border border-emerald-200 cursor-pointer flex items-center gap-1"
-                                title="Confirmar Pagamento (Dar Baixa)"
-                              >
-                                <Check className="h-3 w-3" /> Pagar
-                              </button>
-                            )}
-                          {ap.status !== "Paga" &&
-                            ap.status !== "Cancelada" &&
-                            hasPermission("accounts-payable.cancel") && (
-                              <button
-                                onClick={() => handleCancel(ap.id)}
-                                className="text-[10px] bg-zinc-50 hover:bg-zinc-200 text-zinc-700 font-bold px-2 py-1 rounded border border-zinc-200 cursor-pointer flex items-center gap-1"
-                                title="Cancelar Registro"
-                              >
-                                <Ban className="h-3 w-3" /> Cancelar
-                              </button>
-                            )}
+                          {canEdit(ap) && (
+                            <button
+                              onClick={() => openPanel(ap, "info", true)}
+                              className="text-[10px] bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-2 py-1 rounded border border-sky-200 cursor-pointer flex items-center gap-1"
+                              title="Editar lançamento"
+                            >
+                              <Pencil className="h-3 w-3" /> Editar
+                            </button>
+                          )}
+                          {canCancel(ap) && (
+                            <button
+                              onClick={() => handleCancel(ap.id)}
+                              className="text-[10px] bg-zinc-50 hover:bg-zinc-200 text-zinc-700 font-bold px-2 py-1 rounded border border-zinc-200 cursor-pointer flex items-center gap-1"
+                              title="Cancelar Registro"
+                            >
+                              <Ban className="h-3 w-3" /> Cancelar
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
-
-                    {/* Collapsible Details Row */}
-                    {isExpanded && (
-                      <tr>
-                        <td
-                          colSpan={7}
-                          className="p-4 bg-zinc-50/50 border-t border-b border-zinc-100"
-                        >
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-zinc-600">
-                            {/* Finance breakdown column */}
-                            <div className="space-y-2">
-                              <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                                <DollarSign className="h-3.5 w-3.5" />{" "}
-                                Detalhamento de Valores
-                              </h4>
-                              <div className="space-y-1 bg-white p-3 rounded-lg border border-zinc-200/60 font-mono">
-                                <div className="flex justify-between">
-                                  <span>Valor Principal:</span>
-                                  <span>
-                                    R${" "}
-                                    {ap.amount.toLocaleString("pt-BR", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-rose-500">
-                                  <span>Juros:</span>
-                                  <span>
-                                    + R${" "}
-                                    {ap.interest.toLocaleString("pt-BR", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-rose-500">
-                                  <span>Multa:</span>
-                                  <span>
-                                    + R${" "}
-                                    {ap.penalty.toLocaleString("pt-BR", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between text-emerald-600">
-                                  <span>Desconto:</span>
-                                  <span>
-                                    - R${" "}
-                                    {ap.discount.toLocaleString("pt-BR", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between font-bold text-zinc-900 border-t border-zinc-100 pt-1 text-sm">
-                                  <span>Líquido Final:</span>
-                                  <span>
-                                    R${" "}
-                                    {ap.finalAmount.toLocaleString("pt-BR", {
-                                      minimumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Payment details column */}
-                            <div className="space-y-2">
-                              <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" /> Metadados de
-                                Liquidação
-                              </h4>
-                              <div className="space-y-1.5 bg-white p-3 rounded-lg border border-zinc-200/60">
-                                <div>
-                                  <span className="text-zinc-400 font-medium block text-[9px] uppercase">
-                                    Forma de Pagamento
-                                  </span>
-                                  <span className="font-bold text-zinc-800">
-                                    {ap.paymentMethod}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-zinc-400 font-medium block text-[9px] uppercase">
-                                    Recorrência
-                                  </span>
-                                  <span className="font-semibold text-zinc-800">
-                                    {ap.recurrence}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-zinc-400 font-medium block text-[9px] uppercase">
-                                    Conta Bancária Origem
-                                  </span>
-                                  <span className="font-semibold text-zinc-800">
-                                    {bankAccounts.find(
-                                      (ba) => ba.id === ap.bankAccountId,
-                                    )?.bankName || "Itaú"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Attachments & logs column */}
-                            <div className="space-y-2">
-                              <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                                <Paperclip className="h-3.5 w-3.5" /> Documentos
-                                & Auditoria
-                              </h4>
-                              <div className="space-y-2 bg-white p-3 rounded-lg border border-zinc-200/60">
-                                <div>
-                                  <span className="text-zinc-400 font-medium block text-[9px] uppercase">
-                                    Anexo Cadastrado
-                                  </span>
-                                  {ap.attachmentName ? (
-                                    <a
-                                      href="#"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        alert(
-                                          "Abrindo documento com token seguro assinado por S3...",
-                                        );
-                                      }}
-                                      className="font-bold text-zinc-900 hover:underline flex items-center gap-1 mt-0.5"
-                                    >
-                                      <Paperclip className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
-                                      {ap.attachmentName}{" "}
-                                      <ExternalLink className="h-3 w-3 inline text-zinc-400" />
-                                    </a>
-                                  ) : (
-                                    <span className="text-zinc-400 italic">
-                                      Nenhum anexo enviado
-                                    </span>
-                                  )}
-                                </div>
-
-                                {ap.status === "Paga" && (
-                                  <div>
-                                    <span className="text-zinc-400 font-medium block text-[9px] uppercase">
-                                      Comprovante de Baixa
-                                    </span>
-                                    <span className="text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
-                                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />{" "}
-                                      Confirmado em{" "}
-                                      {new Date(
-                                        ap.paymentDate || "",
-                                      ).toLocaleDateString("pt-BR")}
-                                    </span>
-                                  </div>
-                                )}
-
-                                <div className="border-t border-zinc-100 pt-1.5 text-[10px] text-zinc-400 font-mono leading-tight">
-                                  UUID: {ap.id}
-                                  <br />
-                                  Registrado:{" "}
-                                  {new Date(ap.createdAt).toLocaleString(
-                                    "pt-BR",
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-              {filteredPayables.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="p-8 text-center text-zinc-400 italic"
-                  >
-                    Nenhuma conta a pagar encontrada correspondente aos termos
-                    de busca.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  );
+                })}
+                {filteredPayables.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="p-8 text-center text-zinc-400 italic"
+                    >
+                      Nenhuma conta a pagar encontrada correspondente aos termos
+                      de busca.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {/* Side panel */}
+        {selected && (
+          <div className="bg-white rounded-xl border border-zinc-200 shadow-xs w-full lg:w-[380px] shrink-0 lg:sticky lg:top-4 overflow-hidden">
+            <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-zinc-800">
+                Detalhes do título
+              </h3>
+              <button
+                onClick={closePanel}
+                className="p-1 rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-1 border-b border-zinc-100">
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${getStatusBadge(selected.status)}`}
+                >
+                  {selected.status}
+                </span>
+                {dueLabel(selected) && (
+                  <span className={`text-[10px] font-bold ${dueLabel(selected)!.tone}`}>
+                    {dueLabel(selected)!.text}
+                  </span>
+                )}
+              </div>
+              <p className="text-xl font-black text-zinc-900">
+                {formatBRL(
+                  selected.status === "Parcialmente paga"
+                    ? getRemaining(selected)
+                    : selected.finalAmount,
+                )}
+              </p>
+              <p className="text-xs text-zinc-500 font-semibold">
+                {selected.supplier}
+              </p>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-zinc-100 text-[11px] font-bold">
+              {(
+                [
+                  { id: "info", label: "Informações", icon: Info },
+                  { id: "payment", label: "Pagamento", icon: Landmark },
+                  { id: "attachments", label: "Anexos", icon: Paperclip },
+                  { id: "history", label: "Histórico", icon: History },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setPanelTab(tab.id);
+                    setPanelError("");
+                    if (tab.id !== "info") setIsEditingInfo(false);
+                    if (tab.id === "payment") openPanel(selected, "payment");
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2.5 border-b-2 cursor-pointer transition-colors ${
+                    panelTab === tab.id
+                      ? "border-[#0B2C52] text-[#0B2C52]"
+                      : "border-transparent text-zinc-400 hover:text-zinc-600"
+                  }`}
+                >
+                  <tab.icon className="h-3.5 w-3.5" /> {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-4 space-y-3 text-xs max-h-[60vh] overflow-y-auto">
+              {panelError && (
+                <div className="flex items-start gap-2 text-xs text-[#C8102E] bg-[#C8102E]/5 border border-[#C8102E]/20 rounded-lg p-3">
+                  <AlertCircle className="h-4 w-4 shrink-0" /> {panelError}
+                </div>
+              )}
+
+              {/* INFORMAÇÕES */}
+              {panelTab === "info" && !isEditingInfo && (
+                <div className="space-y-3">
+                  <div className="bg-zinc-50 rounded-lg border border-zinc-200/70 divide-y divide-zinc-200/70">
+                    {[
+                      ["Fornecedor", selected.supplier],
+                      ["Nº Documento", selected.documentNumber || "N/A"],
+                      ["Descrição", selected.description],
+                      ["Vencimento", new Date(selected.dueDate).toLocaleDateString("pt-BR")],
+                      ["Emissão", new Date(selected.issueDate).toLocaleDateString("pt-BR")],
+                      ["Categoria", selected.category],
+                      ["Centro de Custo", selected.costCenter],
+                      ["Forma de Pagamento", selected.paymentMethod],
+                      ["Valor Original", formatBRL(selected.amount)],
+                      ["Acréscimos", formatBRL(selected.interest + selected.penalty)],
+                      ["Descontos", formatBRL(selected.discount)],
+                      ["Valor Total", formatBRL(selected.finalAmount)],
+                      ...(selected.paidAmount
+                        ? ([["Já pago", formatBRL(selected.paidAmount)], ["Saldo em aberto", formatBRL(getRemaining(selected))]] as [string, string][])
+                        : []),
+                      ["Observação", selected.notes || "—"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-zinc-500">{label}</span>
+                        <span className="font-bold text-zinc-800 text-right">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    {canPay(selected) && (
+                      <button
+                        onClick={() => {
+                          setPanelTab("payment");
+                          openPanel(selected, "payment");
+                        }}
+                        className="w-full text-xs font-bold text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 py-2.5 rounded-lg cursor-pointer"
+                      >
+                        Marcar como pago
+                      </button>
+                    )}
+                    {selected.status === "A vencer" && (
+                      <button
+                        onClick={() => scheduleAccountPayable(selected.id)}
+                        className="w-full text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 py-2.5 rounded-lg cursor-pointer"
+                      >
+                        Agendar pagamento
+                      </button>
+                    )}
+                    {canEdit(selected) && (
+                      <button
+                        onClick={startEditFromPanel}
+                        className="w-full text-xs font-bold bg-[#0B2C52] hover:bg-[#0B2C52]/90 text-white py-2.5 rounded-lg cursor-pointer"
+                      >
+                        Editar título
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {panelTab === "info" && isEditingInfo && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">Descrição *</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">Fornecedor *</label>
+                    <select
+                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
+                      value={editSupplier}
+                      onChange={(e) => setEditSupplier(e.target.value)}
+                    >
+                      <option value="">Selecione...</option>
+                      {masterOptions("SUPPLIER").map((item) => (
+                        <option key={item.id} value={item.name}>{item.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Categoria *</label>
+                      <select
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        {masterOptions("CATEGORY").map((item) => (
+                          <option key={item.id} value={item.name}>{item.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Centro de Custo *</label>
+                      <select
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
+                        value={editCostCenter}
+                        onChange={(e) => setEditCostCenter(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        {masterOptions("COST_CENTER").map((item) => (
+                          <option key={item.id} value={item.name}>{item.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Emissão</label>
+                      <input
+                        type="date"
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                        value={editIssueDate}
+                        onChange={(e) => setEditIssueDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Vencimento *</label>
+                      <input
+                        type="date"
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                        value={editDueDate}
+                        onChange={(e) => setEditDueDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Valor (R$) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Desconto (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                        value={editDiscount}
+                        onChange={(e) => setEditDiscount(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Juros (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                        value={editInterest}
+                        onChange={(e) => setEditInterest(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-zinc-500 uppercase block">Multa (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                        value={editPenalty}
+                        onChange={(e) => setEditPenalty(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">Conta bancária de origem</label>
+                    <select
+                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
+                      value={editBankAccountId}
+                      onChange={(e) => setEditBankAccountId(e.target.value)}
+                    >
+                      {accounts.map((ba) => (
+                        <option key={ba.id} value={ba.id}>{ba.bankName}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">Nº Documento</label>
+                    <input
+                      type="text"
+                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                      value={editDocumentNumber}
+                      onChange={(e) => setEditDocumentNumber(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">Observação</label>
+                    <textarea
+                      rows={2}
+                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingInfo(false)}
+                      className="text-zinc-500 font-bold px-3 py-2 cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      className="bg-[#C8102E] hover:bg-[#8F071B] text-white font-bold px-4 py-2 rounded-lg cursor-pointer"
+                    >
+                      Salvar alterações
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* PAGAMENTO */}
+              {panelTab === "payment" && (
+                <div className="space-y-3">
+                  {["Paga", "Cancelada"].includes(selected.status) ? (
+                    <p className="text-zinc-400 italic py-6 text-center">
+                      {selected.status === "Paga"
+                        ? "Este título já está totalmente pago."
+                        : "Este título foi cancelado e não pode receber pagamentos."}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 flex items-center justify-between">
+                        <span className="text-zinc-500 font-semibold">Saldo em aberto</span>
+                        <span className="font-black text-zinc-900">{formatBRL(getRemaining(selected))}</span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Banco de origem *</label>
+                        <select
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer"
+                          value={payBankAccountId}
+                          onChange={(e) => setPayBankAccountId(e.target.value)}
+                        >
+                          <option value="">Selecione...</option>
+                          {accounts.map((ba) => (
+                            <option key={ba.id} value={ba.id}>
+                              {ba.bankName} - Saldo {formatBRL(ba.balance)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Valor a pagar agora (R$) *</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                        />
+                        {Number(payAmount) > 0 && Number(payAmount) < getRemaining(selected) && (
+                          <p className="text-[10px] text-cyan-700 font-semibold">
+                            Pagamento parcial: o título continuará pendente pelo restante.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">Juros (R$)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                            value={payInterest}
+                            onChange={(e) => setPayInterest(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">Multa (R$)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                            value={payPenalty}
+                            onChange={(e) => setPayPenalty(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">Desconto (R$)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                            value={payDiscount}
+                            onChange={(e) => setPayDiscount(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Data do pagamento</label>
+                        <input
+                          type="date"
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                          value={payDate}
+                          onChange={(e) => setPayDate(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Comprovante</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Nenhum comprovante anexado"
+                            readOnly
+                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-500"
+                            value={payReceiptUrl ? "comprovante_upload_simulado.pdf" : ""}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setPayReceiptUrl("#")}
+                            className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 p-2 rounded-lg cursor-pointer text-zinc-700 font-bold flex items-center gap-1 shrink-0"
+                          >
+                            <Paperclip className="h-3.5 w-3.5" /> Simular
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">Observação</label>
+                        <textarea
+                          rows={2}
+                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg"
+                          value={payNotes}
+                          onChange={(e) => setPayNotes(e.target.value)}
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleConfirmPayment}
+                        className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg cursor-pointer"
+                      >
+                        <CheckCircle className="h-4 w-4" /> Confirmar pagamento
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ANEXOS */}
+              {panelTab === "attachments" && (
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Anexo do título</span>
+                    {selected.attachmentName ? (
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          alert("Abrindo documento com token seguro assinado por S3...");
+                        }}
+                        className="font-bold text-zinc-900 hover:underline flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-lg p-3"
+                      >
+                        <Paperclip className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
+                        {selected.attachmentName}
+                        <ExternalLink className="h-3 w-3 text-zinc-400" />
+                      </a>
+                    ) : (
+                      <p className="text-zinc-400 italic bg-zinc-50 border border-zinc-200 rounded-lg p-3">
+                        Nenhum anexo enviado.
+                      </p>
+                    )}
+                    {canEdit(selected) && (
+                      <button
+                        onClick={handleAttachSimulated}
+                        className="mt-2 text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 px-3 py-2 rounded-lg cursor-pointer text-zinc-700 font-bold flex items-center gap-1.5"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" /> Substituir anexo (simular)
+                      </button>
+                    )}
+                  </div>
+
+                  {(selected.paymentHistory || []).some((p) => p.receiptUrl) && (
+                    <div>
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase block mb-1">Comprovantes de pagamento</span>
+                      <div className="space-y-1.5">
+                        {(selected.paymentHistory || [])
+                          .filter((p) => p.receiptUrl)
+                          .map((p) => (
+                            <a
+                              key={p.id}
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                alert("Abrindo comprovante com token seguro assinado por S3...");
+                              }}
+                              className="font-semibold text-zinc-800 hover:underline flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-lg p-2.5"
+                            >
+                              <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                              Comprovante de {new Date(p.date).toLocaleDateString("pt-BR")} — {formatBRL(p.amount)}
+                            </a>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* HISTÓRICO */}
+              {panelTab === "history" && (
+                <div className="space-y-2">
+                  {(selected.paymentHistory || []).length === 0 ? (
+                    <p className="text-zinc-400 italic py-6 text-center">
+                      Nenhum pagamento registrado ainda.
+                    </p>
+                  ) : (
+                    [...(selected.paymentHistory || [])]
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map((p) => (
+                        <div key={p.id} className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-zinc-900">{formatBRL(p.amount)}</span>
+                            <span className="text-[10px] text-zinc-400">
+                              {new Date(p.date).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-zinc-500 flex items-center gap-1">
+                            <Landmark className="h-3 w-3" /> {p.bankAccountName}
+                          </div>
+                          {(p.interest > 0 || p.penalty > 0 || p.discount > 0) && (
+                            <div className="text-[10px] text-zinc-500">
+                              {p.interest > 0 && <>Juros: {formatBRL(p.interest)} · </>}
+                              {p.penalty > 0 && <>Multa: {formatBRL(p.penalty)} · </>}
+                              {p.discount > 0 && <>Desconto: {formatBRL(p.discount)}</>}
+                            </div>
+                          )}
+                          {p.notes && (
+                            <p className="text-[10px] text-zinc-500 italic">"{p.notes}"</p>
+                          )}
+                          <div className="text-[9px] text-zinc-400 flex items-center gap-1 pt-1 border-t border-zinc-200/70">
+                            <Clock className="h-3 w-3" /> Registrado por {p.registeredByName}
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

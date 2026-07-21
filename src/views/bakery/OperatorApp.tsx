@@ -179,6 +179,46 @@ function InlineError({ message }: { message?: string }) {
   );
 }
 
+function InitialBalanceDivergenceCard({ shift }: { shift: BakeryShift }) {
+  const hasDivergence =
+    shift.previousShiftFinalBalance !== undefined &&
+    shift.previousShiftFinalBalance !== shift.initialBalance;
+  if (!hasDivergence) return null;
+  const delta = shift.initialBalance - (shift.previousShiftFinalBalance as number);
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+      <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
+        <AlertCircle className="h-4 w-4 shrink-0" /> Diferença no saldo inicial deste turno
+      </div>
+      <div className="text-sm space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-amber-700">Saldo final do turno anterior</span>
+          <span className="font-bold text-amber-900">
+            {formatBRL(shift.previousShiftFinalBalance as number)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-amber-700">Saldo inicial informado</span>
+          <span className="font-bold text-amber-900">{formatBRL(shift.initialBalance)}</span>
+        </div>
+        <div className="flex items-center justify-between border-t border-amber-200 pt-1">
+          <span className="text-amber-800 font-semibold">Diferença</span>
+          <span className="font-bold text-[#C8102E]">
+            {delta < 0 ? "- " : "+ "}
+            {formatBRL(Math.abs(delta))}
+          </span>
+        </div>
+      </div>
+      {shift.initialBalanceJustification && (
+        <p className="text-xs text-amber-700 italic border-t border-amber-200 pt-2">
+          Justificativa na abertura: "{shift.initialBalanceJustification}"
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MovementRow({
   icon,
   iconClass,
@@ -935,6 +975,8 @@ function CloseSummaryScreen({
         ))}
       </div>
 
+      <InitialBalanceDivergenceCard shift={shift} />
+
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl divide-y divide-emerald-100">
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
           <span className="text-emerald-700 font-semibold">Receita estimada em espécie</span>
@@ -1536,6 +1578,7 @@ export default function OperatorApp() {
           subtitle={shift.registerName}
           onBack={() => setScreen("history")}
         />
+        <InitialBalanceDivergenceCard shift={shift} />
         <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
           {[
             ["Saldo inicial", formatBRL(shift.initialBalance)],

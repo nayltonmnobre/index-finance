@@ -98,6 +98,22 @@ export interface MasterDataOption {
   createdAt: string;
 }
 
+export interface AccountPayablePayment {
+  id: string;
+  date: string;
+  amount: number; // valor efetivamente debitado do banco nesta baixa
+  bankAccountId: string;
+  bankAccountName: string;
+  interest: number; // juros lançados nesta baixa (além dos já previstos no título)
+  penalty: number; // multa lançada nesta baixa
+  discount: number; // desconto concedido nesta baixa
+  notes?: string;
+  receiptUrl?: string;
+  registeredById: string;
+  registeredByName: string;
+  createdAt: string;
+}
+
 export interface AccountPayable {
   id: string;
   companyId: string;
@@ -128,6 +144,7 @@ export interface AccountPayable {
     | "Aprovada"
     | "Agendada"
     | "Paga"
+    | "Parcialmente paga"
     | "Vencida"
     | "Rejeitada"
     | "Cancelada";
@@ -135,6 +152,8 @@ export interface AccountPayable {
   needsApproval: boolean;
   paymentDate?: string;
   paymentReceiptUrl?: string;
+  paidAmount?: number; // soma de tudo já baixado (paymentHistory)
+  paymentHistory?: AccountPayablePayment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -465,6 +484,9 @@ export interface BakeryShift {
   initialBalance: number;
   openNote?: string;
   initialBalanceJustification?: string;
+  // Saldo final do último turno fechado deste caixa, capturado no momento da
+  // abertura — usado para apontar a diferença no fechamento deste turno.
+  previousShiftFinalBalance?: number;
   closedAt?: string;
   finalBalanceCounted?: number;
   closeNote?: string;

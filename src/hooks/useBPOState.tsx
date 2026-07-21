@@ -16,6 +16,7 @@ import {
   Tenant,
   BankAccount,
   AccountPayable,
+  AccountPayablePayment,
   AccountReceivable,
   Approval,
   Document,
@@ -219,9 +220,22 @@ interface BPOContextType {
       "id" | "companyId" | "createdAt" | "updatedAt" | "finalAmount" | "status"
     >,
   ) => void;
-  updateAccountPayable: (id: string, updates: Partial<AccountPayable>) => void;
-  cancelAccountPayable: (id: string) => void;
-  payAccountPayable: (id: string, date: string, receiptUrl?: string) => void;
+  updateAccountPayable: (
+    id: string,
+    updates: Partial<AccountPayable>,
+  ) => { success: boolean; error?: string };
+  cancelAccountPayable: (id: string) => { success: boolean; error?: string };
+  payAccountPayable: (data: {
+    id: string;
+    date: string;
+    bankAccountId: string;
+    amount: number;
+    interest?: number;
+    penalty?: number;
+    discount?: number;
+    notes?: string;
+    receiptUrl?: string;
+  }) => { success: boolean; error?: string };
   scheduleAccountPayable: (id: string) => void;
 
   addAccountReceivable: (
@@ -1229,24 +1243,22 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateAccountPayable = (
-    id: string,
-    updates: Partial<AccountPayable>,
+  const updateAccountPayable: BPOContextType["updateAccountPayable"] = (
+    id,
+    updates,
   ) => {
-    if (!hasPermission("accounts-payable.update")) return;
+    if (!hasPermission("accounts-payable.update"))
+      return { success: false, error: "Você não tem permissão para editar contas a pagar." };
+
+    const existing = accountsPayable.find((p) => p.id === id);
+    if (!existing) return { success: false, error: "Título não encontrado." };
+    if (["Paga", "Parcialmente paga", "Cancelada"].includes(existing.status))
+      return {
+        success: false,
+        error: `Não é possível editar um título com status "${existing.status}". Use a aba de pagamento para lançar novas baixas.`,
+      };
 
     setAccountsPayable((prev) => {
-      const existing = prev.find((p) => p.id === id);
-      if (!existing) return prev;
-
-      // Cannot update if paid
-      if (existing.status === "Paga") {
-        console.error(
-          "Cannot modify paid accounts without special audit overrides.",
-        );
-        return prev;
-      }
-
       const merged = {
         ...existing,
         ...updates,
@@ -1271,15 +1283,23 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       );
       return prev.map((p) => (p.id === id ? merged : p));
     });
+    return { success: true };
   };
 
   const cancelAccountPayable = (id: string) => {
-    if (!hasPermission("accounts-payable.cancel")) return;
+    if (!hasPermission("accounts-payable.cancel"))
+      return { success: false, error: "Você não tem permissão para cancelar contas a pagar." };
+
+    const existing = accountsPayable.find((p) => p.id === id);
+    if (!existing) return { success: false, error: "Título não encontrado." };
+    if (existing.paymentHistory && existing.paymentHistory.length > 0)
+      return {
+        success: false,
+        error:
+          "Este título já teve baixas registradas e não pode ser cancelado. Reverta os pagamentos com o BPO antes de cancelar.",
+      };
 
     setAccountsPayable((prev) => {
-      const existing = prev.find((p) => p.id === id);
-      if (!existing) return prev;
-
       const updated = {
         ...existing,
         status: "Cancelada" as const,
@@ -1311,47 +1331,87 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       "Um registro financeiro a pagar foi cancelado e auditado.",
       "WARNING",
     );
+    return { success: true };
   };
 
-  const payAccountPayable = (id: string, date: string, receiptUrl?: string) => {
-    setAccountsPayable((prev) => {
-      const existing = prev.find((p) => p.id === id);
-      if (!existing) return prev;
+  const payAccountPayable: BPOContextType["payAccountPayable"] = (data) => {
+    const existing = accountsPayable.find((p) => p.id === data.id);
+    if (!existing) return { success: false, error: "Título não encontrado." };
+    if (["Paga", "Cancelada"].includes(existing.status))
+      return { success: false, error: `Este título já está com status "${existing.status}".` };
+    const bank = bankAccounts.find((ba) => ba.id === data.bankAccountId);
+    if (!bank) return { success: false, error: "Selecione uma conta bancária válida." };
+    if (!(data.amount > 0))
+      return { success: false, error: "Informe um valor de pagamento válido." };
 
-      const updated: AccountPayable = {
-        ...existing,
-        status: "Paga",
-        paymentDate: date,
-        paymentReceiptUrl: receiptUrl || "#",
-        updatedAt: new Date().toISOString(),
-      };
+    const extraInterest = Number(data.interest) || 0;
+    const extraPenalty = Number(data.penalty) || 0;
+    const extraDiscount = Number(data.discount) || 0;
+    const previouslyPaid = existing.paidAmount || 0;
+    const adjustedFinalAmount =
+      existing.finalAmount + extraInterest + extraPenalty - extraDiscount;
+    const outstandingBefore = adjustedFinalAmount - previouslyPaid;
+    const amountPaidNow = Math.min(Number(data.amount), Math.max(outstandingBefore, 0));
+    const remaining = outstandingBefore - amountPaidNow;
+    const isFullySettled = remaining <= 0.01;
 
-      // Deduct balance of the bank account
-      setBankAccounts((accounts) =>
-        accounts.map((ba) => {
-          if (ba.id === existing.bankAccountId) {
-            return { ...ba, balance: ba.balance - existing.finalAmount };
-          }
-          return ba;
-        }),
-      );
+    const payment: AccountPayablePayment = {
+      id: `appay-${Date.now()}`,
+      date: data.date,
+      amount: amountPaidNow,
+      bankAccountId: bank.id,
+      bankAccountName: bank.bankName,
+      interest: extraInterest,
+      penalty: extraPenalty,
+      discount: extraDiscount,
+      notes: data.notes,
+      receiptUrl: data.receiptUrl,
+      registeredById: currentUser.id,
+      registeredByName: currentUser.name,
+      createdAt: new Date().toISOString(),
+    };
 
-      createAuditLog(
-        "CONFIRMAR_PAGAMENTO",
-        "AccountPayable",
-        id,
-        existing.companyId,
-        existing,
-        updated,
-      );
-      return prev.map((p) => (p.id === id ? updated : p));
-    });
+    const updated: AccountPayable = {
+      ...existing,
+      interest: existing.interest + extraInterest,
+      penalty: existing.penalty + extraPenalty,
+      discount: existing.discount + extraDiscount,
+      finalAmount: adjustedFinalAmount,
+      status: isFullySettled ? "Paga" : "Parcialmente paga",
+      bankAccountId: bank.id,
+      paymentDate: isFullySettled ? data.date : existing.paymentDate,
+      paymentReceiptUrl: data.receiptUrl || existing.paymentReceiptUrl,
+      paidAmount: previouslyPaid + amountPaidNow,
+      paymentHistory: [...(existing.paymentHistory || []), payment],
+      updatedAt: new Date().toISOString(),
+    };
+
+    setAccountsPayable((prev) => prev.map((p) => (p.id === data.id ? updated : p)));
+
+    // Deduct only the amount that actually left the bank in this settlement
+    setBankAccounts((accounts) =>
+      accounts.map((ba) =>
+        ba.id === bank.id ? { ...ba, balance: ba.balance - amountPaidNow } : ba,
+      ),
+    );
+
+    createAuditLog(
+      "CONFIRMAR_PAGAMENTO",
+      "AccountPayable",
+      data.id,
+      existing.companyId,
+      existing,
+      updated,
+    );
 
     addNotification(
-      "Pagamento Confirmado",
-      `Pagamento de conta registrado e deduzido do saldo.`,
+      isFullySettled ? "Pagamento Confirmado" : "Pagamento Parcial Registrado",
+      isFullySettled
+        ? `Pagamento de conta registrado e deduzido do saldo de ${bank.bankName}.`
+        : `Baixa parcial de R$ ${amountPaidNow.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} registrada. Restam R$ ${remaining.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em aberto.`,
       "SUCCESS",
     );
+    return { success: true };
   };
   const scheduleAccountPayable = (id: string) => {
     setAccountsPayable((prev) =>
@@ -1945,7 +2005,12 @@ export function BPOProvider({ children }: { children: ReactNode }) {
           error: `Valor incompatível: o extrato possui ${formatMoney(statementValue)} e a conta a pagar exige ${formatMoney(expectedValue)}. Nenhuma alteração foi realizada.`,
         };
       }
-      payAccountPayable(financialRecordId, today);
+      payAccountPayable({
+        id: financialRecordId,
+        date: today,
+        bankAccountId,
+        amount: expectedValue,
+      });
     } else {
       const record = accountsReceivable.find(
         (item) => item.id === financialRecordId,
@@ -2048,15 +2113,24 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         const match = accountsPayable.find(
           (ap) =>
             ap.bankAccountId === bankAccountId &&
-            Math.abs(ap.finalAmount - absoluteAmount) < 0.01 &&
-            ap.status !== "Paga",
+            Math.abs(ap.finalAmount - (ap.paidAmount || 0) - absoluteAmount) < 0.01 &&
+            !["Paga", "Cancelada"].includes(ap.status),
         );
 
         if (match) {
           matchedCount++;
           // Immediately pay
           const today = new Date().toISOString().split("T")[0];
-          setTimeout(() => payAccountPayable(match.id, today), 0);
+          setTimeout(
+            () =>
+              payAccountPayable({
+                id: match.id,
+                date: today,
+                bankAccountId,
+                amount: absoluteAmount,
+              }),
+            0,
+          );
           return {
             ...item,
             isReconciled: true,
