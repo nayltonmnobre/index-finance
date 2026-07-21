@@ -205,6 +205,12 @@ interface BPOContextType {
     updates: Partial<Omit<BankAccount, "id" | "companyId">>,
   ) => void;
   deleteBankAccount: (id: string) => void;
+  ensureBolsaAccount: (companyId: string) => void;
+  applyBakeryBankMovement: (
+    bankAccountId: string,
+    delta: number,
+    meta: { action: string; entityType: string; entityId: string },
+  ) => void;
 
   // Actions
   addAccountPayable: (
@@ -317,7 +323,19 @@ interface BPOContextType {
     permissions: string[],
     status?: "ACTIVE" | "INACTIVE",
     companies?: string[],
+    clientOperator?: boolean,
   ) => void;
+  updateTeamMember: (
+    id: string,
+    updates: {
+      name?: string;
+      email?: string;
+      title?: string;
+      role?: UserRole;
+      password?: string;
+    },
+  ) => { success: boolean; error?: string };
+  deleteTeamMember: (id: string) => { success: boolean; error?: string };
 
   addNotification: (
     title: string,
@@ -836,7 +854,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         error: "Este usuário está inativo. Contate o administrador.",
       };
     }
-    if (password !== ACCESS_PASSWORD) {
+    const expectedPassword = targetUser.password || ACCESS_PASSWORD;
+    if (password !== expectedPassword) {
       return { success: false, error: "Senha incorreta." };
     }
 
@@ -1070,6 +1089,55 @@ export function BPOProvider({ children }: { children: ReactNode }) {
           : account,
       ),
     );
+
+  // Conta interna "Bolsa" usada pelo módulo Caixa da Padaria — criada sob
+  // demanda, uma por empresa, sem depender das telas de cadastro de bancos.
+  const ensureBolsaAccount = (companyId: string) => {
+    setBankAccounts((prev) => {
+      if (prev.some((ba) => ba.companyId === companyId && ba.isBolsaAccount))
+        return prev;
+      const account: BankAccount = {
+        id: `ba-bolsa-${companyId}`,
+        companyId,
+        bankName: "Bolsa",
+        agency: "-",
+        accountNumber: "-",
+        type: "Corrente",
+        balance: 0,
+        isBolsaAccount: true,
+      };
+      return [...prev, account];
+    });
+  };
+
+  // Ajusta o saldo de uma conta bancária a partir de ações do módulo Caixa da
+  // Padaria (sangria, despesa paga pela Bolsa, venda no PIX). Diferente de
+  // updateBankAccount, não é restrito a BPO_ADMIN/BPO_TEAM: a operadora
+  // (usuário CLIENT) também precisa poder disparar essas movimentações, do
+  // mesmo jeito que payAccountPayable/receiveAccountReceivable já mexem no
+  // saldo bancário diretamente sem passar pela tela de edição de bancos.
+  const applyBakeryBankMovement = (
+    bankAccountId: string,
+    delta: number,
+    meta: { action: string; entityType: string; entityId: string },
+  ) => {
+    setBankAccounts((prev) => {
+      const existing = prev.find((account) => account.id === bankAccountId);
+      if (!existing) return prev;
+      const updated = { ...existing, balance: existing.balance + delta };
+      createAuditLog(
+        meta.action,
+        meta.entityType,
+        meta.entityId,
+        existing.companyId,
+        { balance: existing.balance },
+        { balance: updated.balance },
+      );
+      return prev.map((account) =>
+        account.id === bankAccountId ? updated : account,
+      );
+    });
+  };
 
   // --- ACCOUNTS PAYABLE ACTIONS ---
   const addAccountPayable = (
@@ -2804,7 +2872,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       id,
       undefined,
       null,
-      newUser,
+      { ...newUser, password: newUser.password ? "••••••••" : undefined },
     );
     addNotification(
       "Membro de Equipe Convidado",
@@ -2818,6 +2886,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
     permissions: string[],
     status?: "ACTIVE" | "INACTIVE",
     assignedCompanies?: string[],
+    clientOperator?: boolean,
   ) => {
     if (currentUser.role !== "BPO_ADMIN") return;
 
@@ -2830,6 +2899,7 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         permissions,
         status: status || existing.status,
         companies: assignedCompanies ?? existing.companies,
+        clientOperator: clientOperator ?? existing.clientOperator,
       };
 
       createAuditLog(
@@ -2837,8 +2907,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         "User",
         id,
         undefined,
-        existing,
-        updated,
+        { ...existing, password: existing.password ? "••••••••" : undefined },
+        { ...updated, password: updated.password ? "••••••••" : undefined },
       );
       return prev.map((u) => (u.id === id ? updated : u));
     });
@@ -2848,6 +2918,89 @@ export function BPOProvider({ children }: { children: ReactNode }) {
       "As permissões de RBAC foram salvas no perfil do colaborador.",
       "SUCCESS",
     );
+  };
+
+  const updateTeamMember: BPOContextType["updateTeamMember"] = (
+    id,
+    updates,
+  ) => {
+    if (currentUser.role !== "BPO_ADMIN")
+      return { success: false, error: "Apenas o Admin do BPO pode editar usuários." };
+
+    const existing = users.find((u) => u.id === id);
+    if (!existing) return { success: false, error: "Usuário não encontrado." };
+    if (updates.name !== undefined && !updates.name.trim())
+      return { success: false, error: "Informe o nome do usuário." };
+    if (updates.email !== undefined && !updates.email.trim())
+      return { success: false, error: "Informe o e-mail do usuário." };
+    if (
+      updates.email &&
+      users.some(
+        (u) => u.id !== id && u.email.toLowerCase() === updates.email!.trim().toLowerCase(),
+      )
+    )
+      return { success: false, error: "Já existe um usuário com este e-mail." };
+    if (updates.password !== undefined && updates.password.trim().length < 6)
+      return { success: false, error: "A senha deve ter pelo menos 6 caracteres." };
+
+    const updated: User = {
+      ...existing,
+      name: updates.name?.trim() ?? existing.name,
+      email: updates.email?.trim() ?? existing.email,
+      title: updates.title !== undefined ? updates.title : existing.title,
+      role: updates.role ?? existing.role,
+      password: updates.password ? updates.password.trim() : existing.password,
+    };
+
+    setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+    createAuditLog(
+      "EDITAR_COLABORADOR",
+      "User",
+      id,
+      undefined,
+      { ...existing, password: existing.password ? "••••••••" : undefined },
+      { ...updated, password: updated.password ? "••••••••" : undefined },
+    );
+    addNotification(
+      "Usuário Atualizado",
+      `Os dados de ${updated.name} foram atualizados.`,
+      "SUCCESS",
+    );
+    return { success: true };
+  };
+
+  const deleteTeamMember: BPOContextType["deleteTeamMember"] = (id) => {
+    if (currentUser.role !== "BPO_ADMIN")
+      return { success: false, error: "Apenas o Admin do BPO pode excluir usuários." };
+    if (id === currentUser.id)
+      return { success: false, error: "Você não pode excluir o seu próprio usuário." };
+
+    const existing = users.find((u) => u.id === id);
+    if (!existing) return { success: false, error: "Usuário não encontrado." };
+    if (
+      existing.role === "BPO_ADMIN" &&
+      users.filter((u) => u.role === "BPO_ADMIN" && u.status === "ACTIVE").length <= 1
+    )
+      return {
+        success: false,
+        error: "Não é possível excluir o último Admin do BPO ativo.",
+      };
+
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    createAuditLog(
+      "EXCLUIR_COLABORADOR",
+      "User",
+      id,
+      undefined,
+      { ...existing, password: existing.password ? "••••••••" : undefined },
+      null,
+    );
+    addNotification(
+      "Usuário Removido",
+      `${existing.name} foi removido da plataforma.`,
+      "WARNING",
+    );
+    return { success: true };
   };
 
   const updateDocument = (id: string, updates: Partial<Document>) => {
@@ -3709,6 +3862,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         addBankAccount,
         updateBankAccount,
         deleteBankAccount,
+        ensureBolsaAccount,
+        applyBakeryBankMovement,
         addAccountPayable,
         updateAccountPayable,
         cancelAccountPayable,
@@ -3737,6 +3892,8 @@ export function BPOProvider({ children }: { children: ReactNode }) {
         updateCompanyStatus,
         addTeamMember,
         updateTeamMemberPermissions,
+        updateTeamMember,
+        deleteTeamMember,
         addNotification,
         markNotificationRead,
         clearNotifications,

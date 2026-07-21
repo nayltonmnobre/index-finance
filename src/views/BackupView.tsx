@@ -5,6 +5,7 @@
 
 import React, { useRef, useState } from "react";
 import { useBPOState } from "../hooks/useBPOState";
+import { useBakeryCashState } from "../hooks/useBakeryCashState";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -32,6 +33,10 @@ const BACKUP_KEYS = [
   "reports",
   "statementItems",
   "supportTickets",
+  "bakeryShifts",
+  "bakeryExpenses",
+  "bakeryWithdrawals",
+  "bakeryPixSales",
   "activeCompanyId",
 ] as const;
 
@@ -49,6 +54,10 @@ const ARRAY_BACKUP_KEYS = [
   "notifications",
   "reports",
   "supportTickets",
+  "bakeryShifts",
+  "bakeryExpenses",
+  "bakeryWithdrawals",
+  "bakeryPixSales",
 ] as const;
 
 interface EmbeddedBackupFile {
@@ -251,6 +260,7 @@ export default function BackupView() {
     currentUser,
     activeCompany,
   } = useBPOState();
+  const { shifts, expenses, withdrawals, pixSales } = useBakeryCashState();
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedBackup, setSelectedBackup] = useState<BackupFile | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -287,6 +297,10 @@ export default function BackupView() {
     reports,
     statementItems,
     supportTickets,
+    bakeryShifts: shifts,
+    bakeryExpenses: expenses,
+    bakeryWithdrawals: withdrawals,
+    bakeryPixSales: pixSales,
     activeCompanyId: activeCompany?.id || companies[0]?.id || "",
   });
 

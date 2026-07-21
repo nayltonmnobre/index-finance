@@ -55,6 +55,7 @@ export const INITIAL_COMPANIES: Company[] = [
     createdAt: '2026-01-15T14:30:00Z',
     status: 'Em dia',
     approvalLimit: 10000,
+    clientModules: ['dashboard', 'approvals', 'documents', 'cash-flow', 'reports', 'support', 'bakery-cash'],
   },
   {
     id: 'c-102',
@@ -135,6 +136,23 @@ export const INITIAL_USERS: User[] = [
     permissions: [
       'dashboard.view',
       'approvals.approve',
+      'documents.upload',
+      'documents.download',
+      'reports.view',
+      'reports.generate'
+    ]
+  },
+  {
+    id: 'u-client-operator',
+    name: 'Bruna Ferreira',
+    email: 'bruna.alfa@exemplo.com.br',
+    role: 'CLIENT',
+    status: 'ACTIVE',
+    title: 'Operadora de Caixa (Padaria)',
+    companies: ['c-101'],
+    clientOperator: true,
+    permissions: [
+      'dashboard.view',
       'documents.upload',
       'documents.download',
       'reports.view',

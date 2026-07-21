@@ -59,6 +59,13 @@ export interface User {
   title?: string;
   companies?: string[]; // Allowed company IDs
   permissions: string[]; // Granular permission list
+  // Quando role === "CLIENT": restringe o usuário a "Operador do cliente",
+  // com acesso apenas ao saldo diário da Bolsa (não ao saldo acumulado).
+  clientOperator?: boolean;
+  // Senha individual definida na criação do usuário. Usuários sem senha
+  // própria (contas seed) continuam autenticando com a senha de acesso
+  // padrão da plataforma.
+  password?: string;
 }
 
 export interface BankAccount {
@@ -69,6 +76,7 @@ export interface BankAccount {
   accountNumber: string;
   type: "Corrente" | "Poupança" | "Investimento";
   balance: number;
+  isBolsaAccount?: boolean; // Conta interna "Bolsa" do módulo Caixa da Padaria
 }
 
 export type MasterDataType =
@@ -78,7 +86,8 @@ export type MasterDataType =
   | "COST_CENTER"
   | "DOCUMENT_TYPE"
   | "SUPPLIER"
-  | "CUSTOMER";
+  | "CUSTOMER"
+  | "BAKERY_REGISTER";
 export interface MasterDataOption {
   id: string;
   companyId: string;
@@ -412,4 +421,122 @@ export interface SupportTicket {
   createdAt: string;
   updatedAt: string;
   messages: SupportMessage[];
+}
+
+// --- Módulo Caixa da Padaria ---
+
+export type BakeryShiftStatus =
+  | "Aberto"
+  | "Aguardando fechamento"
+  | "Fechado"
+  | "Reaberto"
+  | "Cancelado";
+
+export interface BakeryCardMachineEntry {
+  id: string;
+  bankAccountId: string; // A maquininha é da conta bancária que recebe o repasse
+  bankAccountName: string;
+  amount: number;
+}
+
+export interface BakeryShiftCloseSnapshot {
+  closedAt: string;
+  finalBalanceCounted: number;
+  estimatedCashRevenue: number;
+  pixRevenueTotal: number;
+  cardMachineTotal: number;
+  cardMachineEntries: BakeryCardMachineEntry[];
+  totalRevenue: number;
+  changedById: string;
+  changedByName: string;
+  reason?: string;
+}
+
+export interface BakeryShift {
+  id: string;
+  companyId: string;
+  registerId: string;
+  registerName: string;
+  shiftLabel: string; // "Manhã" | "Tarde" | "Noite" | personalizado
+  operatorId: string;
+  operatorName: string;
+  status: BakeryShiftStatus;
+  openedAt: string;
+  initialBalance: number;
+  openNote?: string;
+  initialBalanceJustification?: string;
+  closedAt?: string;
+  finalBalanceCounted?: number;
+  closeNote?: string;
+  estimatedCashRevenue?: number;
+  pixRevenueTotal?: number;
+  cardMachineEntries?: BakeryCardMachineEntry[];
+  cardMachineTotal?: number;
+  totalRevenue?: number;
+  reopenedAt?: string;
+  reopenedById?: string;
+  reopenedByName?: string;
+  reopenReason?: string;
+  closeHistory: BakeryShiftCloseSnapshot[];
+}
+
+export interface BakeryExpense {
+  id: string;
+  companyId: string;
+  shiftId: string;
+  description: string;
+  supplier?: string;
+  amount: number;
+  source: "CAIXA" | "BOLSA";
+  category?: string;
+  note?: string;
+  receiptUrl?: string;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+  canceled?: boolean;
+  canceledAt?: string;
+  canceledById?: string;
+}
+
+export interface BakeryWithdrawal {
+  id: string;
+  companyId: string;
+  shiftId: string;
+  amount: number;
+  note?: string;
+  receiptUrl?: string;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+  canceled?: boolean;
+  canceledAt?: string;
+  canceledById?: string;
+}
+
+export type BakeryPixReconciliationStatus =
+  | "Aguardando conciliação"
+  | "Conciliado"
+  | "Divergente";
+
+export interface BakeryPixSale {
+  id: string;
+  companyId: string;
+  shiftId: string;
+  amount: number;
+  bankAccountId: string;
+  bankAccountName: string;
+  customerName?: string;
+  description?: string;
+  note?: string;
+  receiptUrl?: string;
+  createdAt: string;
+  createdById: string;
+  createdByName: string;
+  reconciliationStatus: BakeryPixReconciliationStatus;
+  reconciledAt?: string;
+  reconciledById?: string;
+  canceled?: boolean;
+  canceledAt?: string;
+  canceledById?: string;
 }

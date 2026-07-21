@@ -5,10 +5,11 @@
 
 import React, { useEffect, useState } from "react";
 import { BPOProvider, useBPOState } from "./hooks/useBPOState";
+import { BakeryCashProvider } from "./hooks/useBakeryCashState";
 import { ClientModule } from "./types";
 import {
   ALL_CLIENT_MODULES,
-  getCompanyClientModules,
+  getEffectiveClientModules,
 } from "./config/clientModules";
 import idexLogo from "../assets/idex-finance-logo-transparent.png";
 
@@ -100,16 +101,22 @@ function BPOWorkspaceShell() {
     logout,
   } = useBPOState();
 
-  const enabledClientModules = getCompanyClientModules(activeCompany);
+  const enabledClientModules = getEffectiveClientModules(
+    activeCompany,
+    currentUser,
+  );
   const isClientViewAllowed = (view: ViewType) =>
     currentUser.role !== "CLIENT" ||
     (ALL_CLIENT_MODULES.includes(view as ClientModule) &&
       enabledClientModules.includes(view as ClientModule));
+  const clientFallbackView: ViewType = currentUser.clientOperator
+    ? "support"
+    : "dashboard";
   const getDefaultView = (role: string): ViewType =>
     role === "BPO_ADMIN"
       ? "operations-center"
       : role === "CLIENT"
-        ? enabledClientModules[0] || "dashboard"
+        ? enabledClientModules[0] || clientFallbackView
         : "dashboard";
 
   const [activeView, setActiveView] = useState<ViewType>(() =>
@@ -127,7 +134,7 @@ function BPOWorkspaceShell() {
 
   useEffect(() => {
     if (currentUser.role === "CLIENT" && !isClientViewAllowed(activeView)) {
-      setActiveView(enabledClientModules[0] || "dashboard");
+      setActiveView(enabledClientModules[0] || clientFallbackView);
     }
   }, [activeCompany?.id, activeCompany?.clientModules, activeView, currentUser.role]);
 
@@ -902,7 +909,9 @@ function AppGate() {
 export default function App() {
   return (
     <BPOProvider>
-      <AppGate />
+      <BakeryCashProvider>
+        <AppGate />
+      </BakeryCashProvider>
     </BPOProvider>
   );
 }

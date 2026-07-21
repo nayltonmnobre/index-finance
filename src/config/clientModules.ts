@@ -1,4 +1,4 @@
-import { ClientModule, Company } from "../types";
+import { ClientModule, Company, User } from "../types";
 
 export const CLIENT_MODULE_OPTIONS: Array<{
   id: ClientModule;
@@ -57,3 +57,25 @@ export const getCompanyClientModules = (
   company?.clientModules === undefined
     ? [...LEGACY_CLIENT_MODULES]
     : company.clientModules;
+
+// "Operador do cliente": nunca pode acessar Painel Geral, Central de
+// Aprovações ou Fluxo de Caixa, independente dos módulos liberados para a
+// empresa.
+export const CLIENT_OPERATOR_BLOCKED_MODULES: ClientModule[] = [
+  "dashboard",
+  "approvals",
+  "cash-flow",
+];
+
+export const getEffectiveClientModules = (
+  company: Company | null | undefined,
+  user: Pick<User, "role" | "clientOperator">,
+): ClientModule[] => {
+  const modules = getCompanyClientModules(company);
+  if (user.role === "CLIENT" && user.clientOperator) {
+    return modules.filter(
+      (module) => !CLIENT_OPERATOR_BLOCKED_MODULES.includes(module),
+    );
+  }
+  return modules;
+};

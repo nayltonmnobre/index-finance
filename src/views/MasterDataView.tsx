@@ -6,6 +6,7 @@ import {
   Landmark,
   Pencil,
   Plus,
+  Store,
   Tags,
   Trash2,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const tabs: {
   { type: "DOCUMENT_TYPE", label: "Tipos de documento", icon: FolderTree },
   { type: "SUPPLIER", label: "Fornecedores", icon: Building2 },
   { type: "CUSTOMER", label: "Clientes", icon: Building2 },
+  { type: "BAKERY_REGISTER", label: "Caixas (Padaria)", icon: Store },
   { type: "BANK", label: "Contas bancárias", icon: Landmark },
 ];
 

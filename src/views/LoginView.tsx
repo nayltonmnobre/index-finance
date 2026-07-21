@@ -18,14 +18,22 @@ import {
   ShieldCheck,
   UserRound,
   Calculator,
+  Store,
 } from 'lucide-react';
 
-const PROFILE_PRESENTATION = {
-  BPO_ADMIN: { label: 'Administrador BPO', icon: ShieldCheck },
-  CLIENT: { label: 'Cliente', icon: UserRound },
-  ACCOUNTANT: { label: 'Contador', icon: Calculator },
-  BPO_TEAM: { label: 'Equipe BPO', icon: UserRound },
-};
+// Contas de demonstração exibidas como atalhos na tela de login — uma por
+// perfil relevante (o CLIENT tem duas: acesso completo e Operador do
+// cliente, já que se comportam de forma bem diferente no app).
+const QUICK_LOGIN_PROFILES: Array<{
+  email: string;
+  label: string;
+  icon: typeof ShieldCheck;
+}> = [
+  { email: 'admin@idexfinance.com.br', label: 'Administrador BPO', icon: ShieldCheck },
+  { email: 'nayltonnobre@gmail.com', label: 'Cliente (Acesso completo)', icon: UserRound },
+  { email: 'bruna.alfa@exemplo.com.br', label: 'Cliente (Operador)', icon: Store },
+  { email: 'contador@idexfinance.com.br', label: 'Contador', icon: Calculator },
+];
 
 export default function LoginView() {
   const { login, users } = useBPOState();
@@ -174,27 +182,25 @@ export default function LoginView() {
               <div className="h-px bg-zinc-200 grow" />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              {users
-                .filter(user => ['BPO_ADMIN', 'CLIENT', 'ACCOUNTANT'].includes(user.role))
-                .slice(0, 3)
-                .map(user => {
-                  const presentation = PROFILE_PRESENTATION[user.role];
-                  const Icon = presentation.icon;
-                  return (
-                    <button
-                      key={user.id}
-                      type="button"
-                      disabled={isSubmitting || user.status !== 'ACTIVE'}
-                      onClick={() => handleProfileLogin(user.email)}
-                      className="flex flex-col items-center gap-1.5 border border-zinc-200 hover:border-[#0B2C52]/40 hover:bg-[#0B2C52]/5 disabled:opacity-60 rounded-lg px-2 py-3 text-center transition-colors cursor-pointer"
-                      title={`Entrar como ${user.name}`}
-                    >
-                      <Icon className="h-4.5 w-4.5 text-[#0B2C52]" />
-                      <span className="text-[10px] font-bold text-zinc-800 leading-tight">{presentation.label}</span>
-                    </button>
-                  );
-                })}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {QUICK_LOGIN_PROFILES.map(profile => {
+                const user = users.find(u => u.email === profile.email);
+                if (!user) return null;
+                const Icon = profile.icon;
+                return (
+                  <button
+                    key={user.id}
+                    type="button"
+                    disabled={isSubmitting || user.status !== 'ACTIVE'}
+                    onClick={() => handleProfileLogin(user.email)}
+                    className="flex flex-col items-center gap-1.5 border border-zinc-200 hover:border-[#0B2C52]/40 hover:bg-[#0B2C52]/5 disabled:opacity-60 rounded-lg px-2 py-3 text-center transition-colors cursor-pointer"
+                    title={`Entrar como ${user.name}`}
+                  >
+                    <Icon className="h-4.5 w-4.5 text-[#0B2C52]" />
+                    <span className="text-[10px] font-bold text-zinc-800 leading-tight">{profile.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

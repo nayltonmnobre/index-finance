@@ -6,38 +6,63 @@
 import React, { useState } from 'react';
 import { useBPOState } from '../hooks/useBPOState';
 import { UserRole } from '../types';
-import { 
-  Plus, 
-  ShieldAlert, 
-  Check, 
-  UserPlus, 
-  Key, 
-  Building, 
-  Layers, 
-  Mail, 
+import {
+  Plus,
+  ShieldAlert,
+  Check,
+  UserPlus,
+  Key,
+  Building,
+  Layers,
+  Mail,
   UserCheck2,
   Trash2,
-  Lock
+  Lock,
+  Pencil,
+  X,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 
+const generatePassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+  let pwd = '';
+  for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+  return pwd;
+};
+
 export default function TeamView() {
-  const { 
-    users, 
-    companies, 
-    addTeamMember, 
-    updateTeamMemberPermissions, 
-    currentUser 
+  const {
+    users,
+    companies,
+    addTeamMember,
+    updateTeamMemberPermissions,
+    updateTeamMember,
+    deleteTeamMember,
+    currentUser
   } = useBPOState();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('CLIENT');
+  const [editPassword, setEditPassword] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [editError, setEditError] = useState('');
 
   // Invitation Form
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>('BPO_TEAM');
   const [title, setTitle] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([]);
+  const [clientOperator, setClientOperator] = useState(false);
 
   if (currentUser.role !== 'BPO_ADMIN') {
     return (
@@ -76,6 +101,10 @@ export default function TeamView() {
       alert('Preencha os campos obrigatórios.');
       return;
     }
+    if (!password || password.length < 6) {
+      alert('Defina uma senha de acesso com pelo menos 6 caracteres.');
+      return;
+    }
     if (role !== 'BPO_ADMIN' && selectedCompanyIds.length === 0) {
       alert(role === 'CLIENT' ? 'Selecione a empresa deste usuário cliente.' : 'Selecione pelo menos uma empresa para este usuário.');
       return;
@@ -92,6 +121,8 @@ export default function TeamView() {
       BPO_ADMIN: 'Administrador do BPO', BPO_TEAM: 'Analista de BPO', ACCOUNTANT: 'Contador responsável', CLIENT: 'Usuário do cliente'
     };
 
+    const isOperator = role === 'CLIENT' && clientOperator;
+
     addTeamMember({
       name,
       email,
@@ -99,14 +130,21 @@ export default function TeamView() {
       title: title || defaultTitles[role],
       status: 'ACTIVE',
       companies: role === 'BPO_ADMIN' ? companies.map(company => company.id) : selectedCompanyIds,
-      permissions: permissionsByRole[role]
+      permissions: isOperator
+        ? permissionsByRole[role].filter(p => p !== 'approvals.approve')
+        : permissionsByRole[role],
+      clientOperator: isOperator,
+      password
     });
 
     setName('');
     setEmail('');
     setRole('BPO_TEAM');
     setTitle('');
+    setPassword('');
+    setShowPassword(false);
     setSelectedCompanyIds([]);
+    setClientOperator(false);
     setIsFormOpen(false);
   };
 
@@ -145,6 +183,72 @@ export default function TeamView() {
     updateTeamMemberPermissions(selectedUser.id, selectedUser.permissions, undefined, updatedCompanies);
   };
 
+  const handleClientOperatorToggle = () => {
+    if (!selectedUser || selectedUser.role !== 'CLIENT') return;
+    const nextIsOperator = !selectedUser.clientOperator;
+    updateTeamMemberPermissions(
+      selectedUser.id,
+      nextIsOperator
+        ? selectedUser.permissions.filter(p => p !== 'approvals.approve')
+        : selectedUser.permissions,
+      undefined,
+      undefined,
+      nextIsOperator
+    );
+  };
+
+  const startEditingProfile = () => {
+    if (!selectedUser) return;
+    setEditName(selectedUser.name);
+    setEditEmail(selectedUser.email);
+    setEditTitle(selectedUser.title || '');
+    setEditRole(selectedUser.role);
+    setEditPassword('');
+    setShowEditPassword(false);
+    setEditError('');
+    setIsEditingProfile(true);
+  };
+
+  const cancelEditingProfile = () => {
+    setIsEditingProfile(false);
+    setEditPassword('');
+    setShowEditPassword(false);
+    setEditError('');
+  };
+
+  const handleSaveProfile = () => {
+    if (!selectedUser) return;
+    if (editPassword && editPassword.length < 6) {
+      setEditError('A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    const result = updateTeamMember(selectedUser.id, {
+      name: editName,
+      email: editEmail,
+      title: editTitle,
+      role: editRole,
+      password: editPassword || undefined,
+    });
+    if (!result.success) {
+      setEditError(result.error || 'Não foi possível salvar as alterações.');
+      return;
+    }
+    setIsEditingProfile(false);
+    setEditPassword('');
+    setShowEditPassword(false);
+    setEditError('');
+  };
+
+  const handleDeleteUser = (id: string, userName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir "${userName}"? Esta ação não pode ser desfeita.`)) return;
+    const result = deleteTeamMember(id);
+    if (!result.success) {
+      alert(result.error || 'Não foi possível excluir este usuário.');
+      return;
+    }
+    if (selectedUserId === id) setSelectedUserId(null);
+  };
+
   return (
     <div id="team-root" className="space-y-6">
       {/* Header */}
@@ -171,7 +275,16 @@ export default function TeamView() {
                 <h3 className="text-sm font-bold text-white">Cadastrar usuário na plataforma</h3>
                 <p className="text-[10px] text-[#F2D3A0] mt-0.5">Defina o perfil e as empresas que poderão ser acessadas.</p>
               </div>
-              <button onClick={() => setIsFormOpen(false)} className="text-[#F2D3A0] hover:text-white font-bold cursor-pointer">Fechar</button>
+              <button
+                onClick={() => {
+                  setIsFormOpen(false);
+                  setPassword('');
+                  setShowPassword(false);
+                }}
+                className="text-[#F2D3A0] hover:text-white font-bold cursor-pointer"
+              >
+                Fechar
+              </button>
             </div>
 
             <form onSubmit={handleInvite} className="p-5 space-y-3">
@@ -199,6 +312,43 @@ export default function TeamView() {
                 />
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 block">Senha de Acesso *</label>
+                <div className="relative flex items-center gap-1.5">
+                  <div className="relative flex-1">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      placeholder="Mínimo 6 caracteres"
+                      autoComplete="new-password"
+                      className="w-full p-2 pr-8 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono focus:outline-none"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    title="Gerar senha"
+                    onClick={() => {
+                      setPassword(generatePassword());
+                      setShowPassword(true);
+                    }}
+                    className="p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-500 hover:text-[#0B2C52] cursor-pointer shrink-0"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <p className="text-[9px] text-zinc-400">Compartilhe esta senha com o usuário; ela não será exibida novamente após o cadastro.</p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-zinc-500 block">Perfil Padrão</label>
@@ -210,6 +360,7 @@ export default function TeamView() {
                       setRole(nextRole);
                       if (nextRole === 'BPO_ADMIN') setSelectedCompanyIds(companies.map(company => company.id));
                       if (nextRole === 'CLIENT' && selectedCompanyIds.length > 1) setSelectedCompanyIds(selectedCompanyIds.slice(0, 1));
+                      if (nextRole !== 'CLIENT') setClientOperator(false);
                     }}
                   >
                     <option value="BPO_TEAM">Analista BPO</option>
@@ -247,10 +398,29 @@ export default function TeamView() {
                 </div>
               </div>
 
+              {role === 'CLIENT' && (
+                <label className="flex items-start gap-2.5 bg-zinc-50 border border-zinc-200 rounded-lg p-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded cursor-pointer text-zinc-950 focus:ring-0"
+                    checked={clientOperator}
+                    onChange={(e) => setClientOperator(e.target.checked)}
+                  />
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-zinc-800 block">Operador do cliente</span>
+                    <span className="text-[9px] text-zinc-500 block">No Caixa da Padaria, este usuário só verá o saldo diário da Bolsa (movimentações do dia), sem acesso ao saldo acumulado.</span>
+                  </div>
+                </label>
+              )}
+
               <div className="flex justify-end gap-2 border-t border-zinc-100 pt-3 mt-4">
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(false)}
+                  onClick={() => {
+                    setIsFormOpen(false);
+                    setPassword('');
+                    setShowPassword(false);
+                  }}
                   className="text-zinc-500 font-bold px-3 py-2 cursor-pointer"
                 >
                   Cancelar
@@ -285,7 +455,10 @@ export default function TeamView() {
                 return (
                   <div 
                     key={user.id}
-                    onClick={() => setSelectedUserId(isSelected ? null : user.id)}
+                    onClick={() => {
+                      setSelectedUserId(isSelected ? null : user.id);
+                      setIsEditingProfile(false);
+                    }}
                     className={`p-4 hover:bg-zinc-50/50 cursor-pointer transition-colors flex items-center justify-between gap-3 ${
                       isSelected ? 'bg-zinc-50/70 border-r-2 border-zinc-900 font-bold' : ''
                     }`}
@@ -296,6 +469,9 @@ export default function TeamView() {
                         <span className="text-[10px] text-zinc-400 block font-normal">{user.title || 'Membro do Time'}</span>
                         <span className="text-[9px] font-mono text-zinc-400 font-normal">{user.email}</span>
                         <span className="text-[9px] text-[#0B2C52] font-semibold block font-normal">{user.role === 'BPO_ADMIN' ? 'Todas as empresas' : `${user.companies?.length || 0} empresa(s) vinculada(s)`}</span>
+                        {user.role === 'CLIENT' && user.clientOperator && (
+                          <span className="text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded inline-block">Operador</span>
+                        )}
                       </div>
                     </div>
 
@@ -314,6 +490,16 @@ export default function TeamView() {
                       >
                         {isActive ? 'Ativo' : 'Inativo'}
                       </button>
+
+                      {user.id !== currentUser.id && (
+                        <button
+                          onClick={() => handleDeleteUser(user.id, user.name)}
+                          title="Excluir usuário"
+                          className="text-[9px] font-bold text-zinc-400 hover:text-[#C8102E] cursor-pointer inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="h-3 w-3" /> Excluir
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -326,9 +512,29 @@ export default function TeamView() {
           <div className="p-4 bg-zinc-50/50 border-b border-zinc-100 flex items-center justify-between">
             <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wide">Painel de Acesso Granular (RBAC)</h3>
             {selectedUser && (
-              <span className="text-[10px] font-bold text-zinc-600 font-mono">
-                Ativo: {selectedUser.name}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-zinc-600 font-mono">
+                  Ativo: {selectedUser.name}
+                </span>
+                {!isEditingProfile && (
+                  <button
+                    onClick={startEditingProfile}
+                    title="Editar dados do usuário"
+                    className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-[#0B2C52] cursor-pointer"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {selectedUser.id !== currentUser.id && (
+                  <button
+                    onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name)}
+                    title="Excluir usuário"
+                    className="p-1.5 rounded-lg text-zinc-500 hover:bg-rose-50 hover:text-[#C8102E] cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
@@ -340,13 +546,114 @@ export default function TeamView() {
               </div>
             ) : (
               <div className="space-y-6 text-xs animate-in fade-in duration-150">
-                <div className="flex items-start gap-4 p-4 bg-zinc-50 rounded-xl border border-zinc-200/50">
-                  <Key className="h-6 w-6 text-zinc-600 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <h4 className="font-bold text-zinc-900 uppercase">Perfil de Regulação de Acessos</h4>
-                    <p className="text-zinc-500">As marcações abaixo representam as permissões vigentes que controlam a renderização dinâmica de botões e ações no faturamento deste colaborador.</p>
+                {isEditingProfile ? (
+                  <div className="space-y-3 p-4 bg-zinc-50 rounded-xl border border-zinc-200/50">
+                    <div className="flex items-center gap-2 text-zinc-900 font-bold uppercase">
+                      <Pencil className="h-4 w-4" /> Editar dados do usuário
+                    </div>
+                    {editError && <p className="text-[#C8102E] font-semibold">{editError}</p>}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 block">Nome</label>
+                        <input
+                          type="text"
+                          className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 block">E-mail</label>
+                        <input
+                          type="email"
+                          className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs font-mono focus:outline-none"
+                          value={editEmail}
+                          onChange={(e) => setEditEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 block">Cargo</label>
+                        <input
+                          type="text"
+                          className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs focus:outline-none"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-500 block">Perfil</label>
+                        <select
+                          className="w-full p-2 bg-white border border-zinc-200 rounded-lg text-xs cursor-pointer"
+                          value={editRole}
+                          onChange={(e) => setEditRole(e.target.value as UserRole)}
+                        >
+                          <option value="BPO_TEAM">Analista BPO</option>
+                          <option value="BPO_ADMIN">Admin BPO</option>
+                          <option value="ACCOUNTANT">Contador</option>
+                          <option value="CLIENT">Usuário do cliente</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <label className="text-[10px] font-bold text-zinc-500 block">Nova senha (opcional)</label>
+                        <div className="flex items-center gap-1.5">
+                          <div className="relative flex-1">
+                            <input
+                              type={showEditPassword ? 'text' : 'password'}
+                              minLength={6}
+                              placeholder="Deixe em branco para manter a senha atual"
+                              autoComplete="new-password"
+                              className="w-full p-2 pr-8 bg-white border border-zinc-200 rounded-lg text-xs font-mono focus:outline-none"
+                              value={editPassword}
+                              onChange={(e) => setEditPassword(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowEditPassword(!showEditPassword)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                            >
+                              {showEditPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            title="Gerar senha"
+                            onClick={() => {
+                              setEditPassword(generatePassword());
+                              setShowEditPassword(true);
+                            }}
+                            className="p-2 bg-white border border-zinc-200 rounded-lg text-zinc-500 hover:text-[#0B2C52] cursor-pointer shrink-0"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={cancelEditingProfile}
+                        className="flex items-center gap-1 text-zinc-500 font-bold px-3 py-2 cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" /> Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        className="flex items-center gap-1 bg-[#C8102E] hover:bg-[#8F071B] text-white font-bold px-4 py-2 rounded-lg cursor-pointer"
+                      >
+                        <Check className="h-3.5 w-3.5" /> Salvar alterações
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-start gap-4 p-4 bg-zinc-50 rounded-xl border border-zinc-200/50">
+                    <Key className="h-6 w-6 text-zinc-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-zinc-900 uppercase">Perfil de Regulação de Acessos</h4>
+                      <p className="text-zinc-500">As marcações abaixo representam as permissões vigentes que controlam a renderização dinâmica de botões e ações no faturamento deste colaborador.</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <div>
@@ -371,6 +678,21 @@ export default function TeamView() {
                     })}
                   </div>
                 </div>
+
+                {selectedUser.role === 'CLIENT' && (
+                  <label className="flex items-start gap-2.5 bg-zinc-50 border border-zinc-200 rounded-lg p-3 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded cursor-pointer text-zinc-950 focus:ring-0"
+                      checked={Boolean(selectedUser.clientOperator)}
+                      onChange={handleClientOperatorToggle}
+                    />
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-zinc-800 block">Operador do cliente</span>
+                      <span className="text-[9px] text-zinc-500 block">No Caixa da Padaria, este usuário só verá o saldo diário da Bolsa (movimentações do dia), sem acesso ao saldo acumulado.</span>
+                    </div>
+                  </label>
+                )}
 
                 {/* Permissions categories lists */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -411,20 +733,23 @@ export default function TeamView() {
                         .filter(p => p.cat === 'Operações' || p.cat === 'Documentos' || p.cat === 'Cliente')
                         .map(p => {
                           const isChecked = selectedUser.permissions.includes(p.id);
-                          const isDisabled = selectedUser.role === 'BPO_ADMIN';
+                          const isBlockedForOperator =
+                            p.id === 'approvals.approve' && Boolean(selectedUser.clientOperator);
+                          const isDisabled = selectedUser.role === 'BPO_ADMIN' || isBlockedForOperator;
 
                           return (
                             <label key={p.id} className="flex items-start gap-2.5 cursor-pointer select-none">
                               <input
                                 type="checkbox"
                                 disabled={isDisabled}
-                                checked={isChecked || isDisabled}
+                                checked={(isChecked && !isBlockedForOperator) || (isDisabled && !isBlockedForOperator)}
                                 onChange={() => handleTogglePermission(p.id)}
                                 className="mt-0.5 rounded cursor-pointer text-zinc-950 focus:ring-0"
                               />
                               <div className="space-y-0.5">
                                 <span className={`font-semibold block ${isDisabled ? 'text-zinc-400' : 'text-zinc-800'}`}>{p.name}</span>
-                                {isDisabled && <span className="text-[8px] bg-zinc-100 text-zinc-500 px-1 py-0.2 rounded font-mono">Implicitamente cedido (BPO Admin)</span>}
+                                {selectedUser.role === 'BPO_ADMIN' && <span className="text-[8px] bg-zinc-100 text-zinc-500 px-1 py-0.2 rounded font-mono">Implicitamente cedido (BPO Admin)</span>}
+                                {isBlockedForOperator && <span className="text-[8px] bg-amber-50 text-amber-700 px-1 py-0.2 rounded font-mono">Bloqueado para Operador do cliente</span>}
                               </div>
                             </label>
                           );
