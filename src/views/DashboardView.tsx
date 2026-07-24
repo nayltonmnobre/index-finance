@@ -54,10 +54,12 @@ export default function DashboardView({
 
   if (!activeCompany) {
     return (
-      <div className="bg-white border border-zinc-200 rounded-xl p-8 text-center space-y-4">
-        <AlertCircle className="h-10 w-10 text-zinc-400 mx-auto" />
-        <h3 className="text-lg font-bold">Nenhuma Empresa Ativa</h3>
-        <p className="text-zinc-500">
+      <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-8 text-center space-y-4">
+        <AlertCircle className="h-10 w-10 text-zinc-400 dark:text-zinc-500 mx-auto" />
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          Nenhuma Empresa Ativa
+        </h3>
+        <p className="text-zinc-500 dark:text-zinc-400">
           Por favor, selecione uma empresa para visualizar o painel.
         </p>
       </div>
@@ -231,9 +233,9 @@ export default function DashboardView({
         : 30;
 
   return (
-    <div id="client-dashboard-root" className="space-y-6">
+    <div id="client-dashboard-root" className="space-y-4">
       {/* Dynamic Intro */}
-      <div className="bg-[#0B2C52] border-l-4 border-[#C8102E] border-y border-r border-white/10 rounded-xl p-6 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#0B2C52] border-l-4 border-[#C8102E] border-y border-r border-white/10 rounded-sm p-6 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="text-[10px] bg-[#061425] border border-white/10 text-[#F2D3A0] uppercase tracking-widest font-mono px-2 py-0.5 rounded font-semibold">
@@ -243,7 +245,7 @@ export default function DashboardView({
               Operacional {activeCompany.status}
             </span>
           </div>
-          <h2 className="text-xl font-bold tracking-tight text-white">
+          <h2 className="text-xl font-semibold tracking-tight text-white">
             Painel Executivo: {activeCompany.tradeName}
           </h2>
           <p className="text-white/80 text-xs max-w-xl">
@@ -256,29 +258,29 @@ export default function DashboardView({
       </div>
 
       {/* Bento-Grid KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {/* Card 1: Saldo Disponível */}
         <div
           id="kpi-card-balance"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between h-36"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between h-32"
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider block">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">
                 Saldo Disponível
               </span>
-              <span className="text-2xl font-bold text-zinc-900 block mt-1">
+              <span className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 block mt-1">
                 R${" "}
                 {totalBalance.toLocaleString("pt-BR", {
                   minimumFractionDigits: 2,
                 })}
               </span>
             </div>
-            <div className="p-2.5 bg-zinc-50 text-zinc-700 rounded-lg border border-zinc-100">
-              <DollarSign className="h-4 w-4" />
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-[#0B2C52]/5 text-[#0B2C52] dark:bg-[#123B6B]/25 dark:text-[#9DB8D9] shrink-0">
+              <DollarSign className="h-3.5 w-3.5" strokeWidth={2.25} />
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
             <ArrowUpRight className="h-3.5 w-3.5" />
             <span>+4.2% em relação ao mês anterior</span>
           </div>
@@ -287,16 +289,16 @@ export default function DashboardView({
         {/* Card 2: Saldo Projetado */}
         <div
           id="kpi-card-projected"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between h-36"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between h-32"
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-1">
-                <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider block">
+                <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">
                   Saldo Projetado (30 dias)
                 </span>
                 <div className="group relative cursor-pointer">
-                  <Info className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-600" />
+                  <Info className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300" />
                   <div className="hidden group-hover:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 bg-zinc-950 text-white text-[10px] rounded shadow-lg z-20">
                     Fórmula: Saldo Atual + Receber Pendente (R${" "}
                     {outstandingReceivables.toLocaleString("pt-BR")}) - Pagar
@@ -304,18 +306,18 @@ export default function DashboardView({
                   </div>
                 </div>
               </div>
-              <span className="text-2xl font-bold text-zinc-900 block mt-1">
+              <span className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 block mt-1">
                 R${" "}
                 {forecastedBalance.toLocaleString("pt-BR", {
                   minimumFractionDigits: 2,
                 })}
               </span>
             </div>
-            <div className="p-2.5 bg-zinc-50 text-zinc-700 rounded-lg border border-zinc-100">
-              <TrendingUp className="h-4 w-4" />
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300 shrink-0">
+              <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.25} />
             </div>
           </div>
-          <div className="text-xs text-zinc-400">
+          <div className="text-xs text-zinc-400 dark:text-zinc-500">
             Considera entradas faturadas e saídas agendadas.
           </div>
         </div>
@@ -323,22 +325,22 @@ export default function DashboardView({
         {/* Card 3: Entradas e Saídas do Período */}
         <div
           id="kpi-card-flows"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between h-36"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between h-32"
         >
           <div className="flex items-start justify-between">
-            <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider block">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">
               Movimentações Realizadas
             </span>
-            <div className="p-2.5 bg-zinc-50 text-zinc-700 rounded-lg border border-zinc-100">
-              <RefreshCw className="h-4 w-4" />
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300 shrink-0">
+              <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.25} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-1">
             <div>
-              <span className="text-[10px] text-zinc-400 block font-medium">
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block font-medium">
                 ENTRADAS
               </span>
-              <span className="text-sm font-bold text-emerald-600 flex items-center">
+              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center">
                 <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
                 R${" "}
                 {totalEntries.toLocaleString("pt-BR", {
@@ -347,10 +349,10 @@ export default function DashboardView({
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-zinc-400 block font-medium">
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block font-medium">
                 SAÍDAS
               </span>
-              <span className="text-sm font-bold text-rose-600 flex items-center">
+              <span className="text-sm font-semibold text-rose-600 dark:text-rose-400 flex items-center">
                 <ArrowDownRight className="h-3.5 w-3.5 mr-0.5" />
                 R${" "}
                 {totalExits.toLocaleString("pt-BR", {
@@ -359,7 +361,7 @@ export default function DashboardView({
               </span>
             </div>
           </div>
-          <div className="text-[10px] text-zinc-400">
+          <div className="text-[10px] text-zinc-400 dark:text-zinc-500">
             Dados consolidados do mês de referência.
           </div>
         </div>
@@ -367,15 +369,15 @@ export default function DashboardView({
         {/* Card 4: Contas Vencidas */}
         <div
           id="kpi-card-overdue"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between h-36"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between h-32"
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider block">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">
                 Contas Vencidas (Pagar)
               </span>
               <span
-                className={`text-2xl font-bold block mt-1 ${totalOverduePayables > 0 ? "text-rose-600" : "text-zinc-900"}`}
+                className={`text-2xl font-semibold block mt-1 ${totalOverduePayables > 0 ? "text-rose-600 dark:text-rose-400" : "text-zinc-900 dark:text-zinc-50"}`}
               >
                 R${" "}
                 {totalOverduePayables.toLocaleString("pt-BR", {
@@ -384,15 +386,15 @@ export default function DashboardView({
               </span>
             </div>
             <div
-              className={`p-2.5 rounded-lg border ${totalOverduePayables > 0 ? "bg-rose-50 text-rose-600 border-rose-100" : "bg-zinc-50 text-zinc-500 border-zinc-100"}`}
+              className={`h-7 w-7 rounded-sm flex items-center justify-center shrink-0 ${totalOverduePayables > 0 ? "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300" : "bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}
             >
-              <AlertCircle className="h-4 w-4" />
+              <AlertCircle className="h-3.5 w-3.5" strokeWidth={2.25} />
             </div>
           </div>
           {canOpenPayables && (
             <button
               onClick={() => onNavigate("payable")}
-              className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
+              className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-semibold flex items-center gap-1 transition-colors text-left"
             >
               Ver Contas Vencidas <ChevronRight className="h-3 w-3" />
             </button>
@@ -402,30 +404,30 @@ export default function DashboardView({
         {/* Card 5: Aprovações pendentes */}
         <div
           id="kpi-card-approvals"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between h-36"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between h-32"
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider block">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">
                 Aprovações Pendentes
               </span>
               <span
-                className={`text-2xl font-bold block mt-1 ${pendingApprovalsCount > 0 ? "text-amber-600" : "text-zinc-900"}`}
+                className={`text-2xl font-semibold block mt-1 ${pendingApprovalsCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-900 dark:text-zinc-50"}`}
               >
                 {pendingApprovalsCount}{" "}
                 {pendingApprovalsCount === 1 ? "pendência" : "pendências"}
               </span>
             </div>
             <div
-              className={`p-2.5 rounded-lg border ${pendingApprovalsCount > 0 ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-zinc-50 text-zinc-500 border-zinc-100"}`}
+              className={`h-7 w-7 rounded-sm flex items-center justify-center shrink-0 ${pendingApprovalsCount > 0 ? "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300" : "bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"}`}
             >
-              <Clock className="h-4 w-4" />
+              <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
             </div>
           </div>
           {canOpenApprovals && (
             <button
               onClick={() => onNavigate("approvals")}
-              className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
+              className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-semibold flex items-center gap-1 transition-colors text-left"
             >
               Acessar Central de Aprovações <ChevronRight className="h-3 w-3" />
             </button>
@@ -435,22 +437,22 @@ export default function DashboardView({
         {/* Card 6: BPO Status */}
         <div
           id="kpi-card-bpo-status"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between h-36"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between h-32"
         >
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-zinc-500 text-xs font-semibold uppercase tracking-wider block">
+              <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider block">
                 Segurança e Auditoria
               </span>
-              <span className="text-sm font-bold text-zinc-900 block mt-2">
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 block mt-2">
                 Logs Ativos e Criptografia
               </span>
             </div>
-            <div className="p-2.5 bg-zinc-50 text-zinc-600 rounded-lg border border-zinc-100">
-              <Users className="h-4 w-4" />
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-zinc-50 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 shrink-0">
+              <Users className="h-3.5 w-3.5" strokeWidth={2.25} />
             </div>
           </div>
-          <div className="text-xs text-zinc-400 leading-tight">
+          <div className="text-xs text-zinc-400 dark:text-zinc-500 leading-tight">
             Último acesso auditado:{" "}
             {companyLogs[0]
               ? new Date(companyLogs[0].timestamp).toLocaleTimeString()
@@ -459,7 +461,7 @@ export default function DashboardView({
           {canOpenAuditLogs && (
             <button
               onClick={() => onNavigate("audit-logs")}
-              className="text-xs text-zinc-500 hover:text-zinc-900 font-bold flex items-center gap-1 transition-colors text-left"
+              className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-semibold flex items-center gap-1 transition-colors text-left"
             >
               Consultar Logs de Auditoria <ChevronRight className="h-3 w-3" />
             </button>
@@ -468,40 +470,40 @@ export default function DashboardView({
       </div>
 
       {/* Main Charts Area & Action Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Cash Flow Graphic */}
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs lg:col-span-2 space-y-4">
+        <div className="bg-white dark:bg-[#091320] p-5 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
                 Evolução do Fluxo de Caixa
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
                 Entradas, saídas e projeção de saldo diário acumulado.
               </p>
             </div>
-            <div className="flex items-center gap-1.5 bg-zinc-100 p-1 rounded-lg border border-zinc-200 text-xs">
+            <div className="flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/70 p-1 rounded-sm border border-zinc-200 dark:border-zinc-700 text-xs">
               <button
                 onClick={() => setTimeframe("7")}
-                className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${timeframe === "7" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900"}`}
+                className={`px-2.5 py-1 rounded-sm font-medium cursor-pointer transition-colors ${timeframe === "7" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-xs" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
               >
                 7D
               </button>
               <button
                 onClick={() => setTimeframe("15")}
-                className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${timeframe === "15" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900"}`}
+                className={`px-2.5 py-1 rounded-sm font-medium cursor-pointer transition-colors ${timeframe === "15" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-xs" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
               >
                 15D
               </button>
               <button
                 onClick={() => setTimeframe("30")}
-                className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${timeframe === "30" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900"}`}
+                className={`px-2.5 py-1 rounded-sm font-medium cursor-pointer transition-colors ${timeframe === "30" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-xs" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
               >
                 30D
               </button>
               <button
                 onClick={() => setTimeframe("90")}
-                className={`px-2.5 py-1 rounded-md font-medium cursor-pointer transition-colors ${timeframe === "90" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900"}`}
+                className={`px-2.5 py-1 rounded-sm font-medium cursor-pointer transition-colors ${timeframe === "90" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-xs" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
               >
                 90D
               </button>
@@ -565,13 +567,13 @@ export default function DashboardView({
         </div>
 
         {/* Interactive Indicator Box */}
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#091320] p-5 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
                 Indicadores de Desempenho
               </h3>
-              <span className="text-[10px] bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded font-mono font-bold">
+              <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded font-mono font-semibold">
                 LGPD OK
               </span>
             </div>
@@ -579,10 +581,10 @@ export default function DashboardView({
             {/* Indicator 1: Margem Bruta */}
             <div className="space-y-1 group">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-600 font-medium flex items-center gap-1.5">
+                <span className="text-xs text-zinc-600 dark:text-zinc-300 font-medium flex items-center gap-1.5">
                   Margem Bruta
                   <div className="relative group/tooltip">
-                    <Info className="h-3 w-3 text-zinc-400 hover:text-zinc-600" />
+                    <Info className="h-3 w-3 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300" />
                     <div className="hidden group-hover/tooltip:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 p-2 bg-zinc-950 text-white text-[9px] rounded shadow-lg z-20 leading-snug">
                       Fórmula: (Faturamento - Custo de Mercadorias/Serviços) /
                       Faturamento.
@@ -592,23 +594,23 @@ export default function DashboardView({
                     </div>
                   </div>
                 </span>
-                <span className="text-xs text-zinc-400 font-medium">
+                <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                   Ref: Mês Atual
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
                 {margemBruta !== null ? (
                   <>
-                    <span className="text-lg font-bold text-zinc-800">
+                    <span className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
                       {margemBruta.toFixed(1)}%
                     </span>
-                    <span className="text-[10px] text-emerald-600 font-medium flex items-center">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center">
                       <ArrowUpRight className="h-3 w-3 mr-0.5" /> +1.4% vs
                       anterior
                     </span>
                   </>
                 ) : (
-                  <span className="text-xs text-zinc-400 italic">
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">
                     Dados insuficientes para cálculo
                   </span>
                 )}
@@ -616,12 +618,12 @@ export default function DashboardView({
             </div>
 
             {/* Indicator 2: Taxa de Inadimplência */}
-            <div className="space-y-1 pt-2 border-t border-zinc-50">
+            <div className="space-y-1 pt-2 border-t border-zinc-50 dark:border-zinc-800">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-600 font-medium flex items-center gap-1.5">
+                <span className="text-xs text-zinc-600 dark:text-zinc-300 font-medium flex items-center gap-1.5">
                   Inadimplência
                   <div className="relative group/tooltip">
-                    <Info className="h-3 w-3 text-zinc-400 hover:text-zinc-600" />
+                    <Info className="h-3 w-3 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300" />
                     <div className="hidden group-hover/tooltip:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 p-2 bg-zinc-950 text-white text-[9px] rounded shadow-lg z-20 leading-snug">
                       Fórmula: Contas a Receber Vencidas / Total Faturamento
                       Emitido.
@@ -630,7 +632,7 @@ export default function DashboardView({
                     </div>
                   </div>
                 </span>
-                <span className="text-xs text-zinc-400 font-medium">
+                <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                   Ref: Histórico
                 </span>
               </div>
@@ -638,16 +640,16 @@ export default function DashboardView({
                 {inadimplenciaRate !== null ? (
                   <>
                     <span
-                      className={`text-lg font-bold ${inadimplenciaRate > 5 ? "text-rose-600" : "text-zinc-800"}`}
+                      className={`text-lg font-semibold ${inadimplenciaRate > 5 ? "text-rose-600 dark:text-rose-400" : "text-zinc-800 dark:text-zinc-100"}`}
                     >
                       {inadimplenciaRate.toFixed(1)}%
                     </span>
-                    <span className="text-[10px] text-zinc-500">
+                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
                       Dentro da meta saudável (&lt;5%)
                     </span>
                   </>
                 ) : (
-                  <span className="text-xs text-zinc-400 italic">
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">
                     Dados insuficientes
                   </span>
                 )}
@@ -655,12 +657,12 @@ export default function DashboardView({
             </div>
 
             {/* Indicator 3: Ticket Médio */}
-            <div className="space-y-1 pt-2 border-t border-zinc-50">
+            <div className="space-y-1 pt-2 border-t border-zinc-50 dark:border-zinc-800">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-600 font-medium flex items-center gap-1.5">
+                <span className="text-xs text-zinc-600 dark:text-zinc-300 font-medium flex items-center gap-1.5">
                   Ticket Médio
                   <div className="relative group/tooltip">
-                    <Info className="h-3 w-3 text-zinc-400 hover:text-zinc-600" />
+                    <Info className="h-3 w-3 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300" />
                     <div className="hidden group-hover/tooltip:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 p-2 bg-zinc-950 text-white text-[9px] rounded shadow-lg z-20 leading-snug">
                       Fórmula: Total de Recebíveis / Quantidade de Clientes
                       Únicos.
@@ -669,25 +671,25 @@ export default function DashboardView({
                     </div>
                   </div>
                 </span>
-                <span className="text-xs text-zinc-400 font-medium">
+                <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">
                   Ref: 30 dias
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
                 {ticketMedio !== null ? (
                   <>
-                    <span className="text-lg font-bold text-zinc-800">
+                    <span className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
                       R${" "}
                       {ticketMedio.toLocaleString("pt-BR", {
                         maximumFractionDigits: 0,
                       })}
                     </span>
-                    <span className="text-[10px] text-emerald-600 font-medium flex items-center">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center">
                       <ArrowUpRight className="h-3 w-3" /> +2.5% vs anterior
                     </span>
                   </>
                 ) : (
-                  <span className="text-xs text-zinc-400 italic">
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">
                     Sem dados suficientes
                   </span>
                 )}
@@ -695,12 +697,12 @@ export default function DashboardView({
             </div>
 
             {/* Indicator 4: Ciclo Financeiro */}
-            <div className="space-y-1 pt-2 border-t border-zinc-50">
+            <div className="space-y-1 pt-2 border-t border-zinc-50 dark:border-zinc-800">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-zinc-600 font-medium flex items-center gap-1.5">
+                <span className="text-xs text-zinc-600 dark:text-zinc-300 font-medium flex items-center gap-1.5">
                   Ciclo Financeiro
                   <div className="relative group/tooltip">
-                    <Info className="h-3 w-3 text-zinc-400 hover:text-zinc-600" />
+                    <Info className="h-3 w-3 text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300" />
                     <div className="hidden group-hover/tooltip:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-52 p-2 bg-zinc-950 text-white text-[9px] rounded shadow-lg z-20 leading-snug">
                       Fórmula: Prazo Médio de Estocagem + Prazo Médio de
                       Recebimento - Prazo Médio de Pagamento.
@@ -710,21 +712,23 @@ export default function DashboardView({
                     </div>
                   </div>
                 </span>
-                <span className="text-xs text-zinc-400 font-medium">Geral</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">
+                  Geral
+                </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-zinc-800">
+                <span className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
                   {cicloFinanceiroDays} dias
                 </span>
-                <span className="text-[10px] text-zinc-400 font-medium">
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-medium">
                   Tempo médio de conversão
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-zinc-100 bg-zinc-50 p-3 rounded-lg mt-4 text-[10px] text-zinc-400 leading-snug flex items-start gap-2">
-            <Sparkles className="h-4 w-4 text-zinc-500 shrink-0 mt-0.5" />
+          <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60 p-3 rounded-sm mt-4 text-[10px] text-zinc-400 dark:text-zinc-500 leading-snug flex items-start gap-2">
+            <Sparkles className="h-4 w-4 text-zinc-500 dark:text-zinc-400 shrink-0 mt-0.5" />
             <span>
               Fórmulas e premissas validadas com a contabilidade externa
               regulada.
@@ -734,22 +738,22 @@ export default function DashboardView({
       </div>
 
       {/* Two Columns: Recent logs and Upcoming accounts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Next Vencimentos list */}
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <div className="bg-white dark:bg-[#091320] p-5 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 uppercase tracking-wide">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 uppercase tracking-wide">
                 Próximos Vencimentos
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
                 Contas que vencem nos próximos dias.
               </p>
             </div>
             {canOpenPayables && (
               <button
                 onClick={() => onNavigate("payable")}
-                className="text-xs font-bold text-zinc-900 hover:underline flex items-center gap-0.5"
+                className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:underline flex items-center gap-0.5"
               >
                 Ver Tudo <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -765,36 +769,36 @@ export default function DashboardView({
                 return (
                   <div
                     key={ap.id}
-                    className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg border border-zinc-200/50 hover:bg-zinc-50/80 transition-colors"
+                    className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-sm border border-zinc-200/50 dark:border-zinc-800 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/60 transition-colors"
                   >
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
                         <span
                           className={`h-2 w-2 rounded-full ${isOverdue ? "bg-rose-500" : "bg-amber-500"}`}
                         />
-                        <span className="text-xs font-bold text-zinc-800 truncate max-w-[150px]">
+                        <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 truncate max-w-[150px]">
                           {ap.description}
                         </span>
                       </div>
-                      <span className="text-[10px] text-zinc-400 block font-medium">
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block font-medium">
                         Favorecido: {ap.supplier} | Vencimento:{" "}
                         {new Date(ap.dueDate).toLocaleDateString("pt-BR")}
                       </span>
                     </div>
                     <div className="text-right space-y-0.5">
-                      <span className="text-xs font-bold text-zinc-800">
+                      <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
                         R${" "}
                         {ap.finalAmount.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </span>
                       <span
-                        className={`text-[9px] px-1.5 py-0.5 rounded font-bold block text-center ${
+                        className={`text-[9px] px-1.5 py-0.5 rounded font-semibold block text-center ${
                           ap.status === "Aguardando aprovação"
-                            ? "bg-amber-100 text-amber-800"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
                             : isOverdue
-                              ? "bg-rose-100 text-rose-800"
-                              : "bg-zinc-100 text-zinc-600"
+                              ? "bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-300"
+                              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                         }`}
                       >
                         {ap.status}
@@ -806,7 +810,7 @@ export default function DashboardView({
             {companyPayables.filter(
               (ap) => ap.status !== "Paga" && ap.status !== "Cancelada",
             ).length === 0 && (
-              <p className="text-center text-xs text-zinc-400 py-6">
+              <p className="text-center text-xs text-zinc-400 dark:text-zinc-500 py-6">
                 Nenhum vencimento pendente.
               </p>
             )}

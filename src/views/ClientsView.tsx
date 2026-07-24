@@ -103,7 +103,7 @@ export default function ClientsView() {
 
   if (currentUser.role !== "BPO_ADMIN") {
     return (
-      <div className="bg-white border border-zinc-200 rounded-xl p-8 text-center text-zinc-500 text-xs italic">
+      <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-8 text-center text-zinc-500 dark:text-zinc-400 text-xs italic">
         Apenas usuários com perfil "Administrador do BPO" possuem permissão para
         gerenciar clientes e faturamentos de inquilinos.
       </div>
@@ -301,11 +301,11 @@ export default function ClientsView() {
         <div>
           <h2
             id="clients-title"
-            className="text-xl font-bold text-zinc-900 tracking-tight"
+            className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight"
           >
             Gestão de Clientes (Tenants)
           </h2>
-          <p className="text-zinc-500 text-xs">
+          <p className="text-zinc-500 dark:text-zinc-400 text-xs">
             Monitore todas as corporações integradas no monólito, controle
             regimes tributários e defina alçadas de aprovação.
           </p>
@@ -313,33 +313,33 @@ export default function ClientsView() {
 
         <button
           onClick={openNew}
-          className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#C8102E] hover:bg-[#8F071B] px-3.5 py-2.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#C8102E] hover:bg-[#8F071B] px-3.5 py-2.5 rounded-sm transition-colors cursor-pointer shadow-xs"
         >
           <Plus className="h-4 w-4" /> Integrar Novo Cliente
         </button>
       </div>
 
       {pageMessage && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
+        <div className="flex items-center justify-between rounded-sm border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
           <span>{pageMessage}</span>
           <button
             type="button"
             onClick={() => setPageMessage("")}
             aria-label="Fechar mensagem"
-            className="cursor-pointer text-emerald-700"
+            className="cursor-pointer text-emerald-700 dark:text-emerald-400"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
       {pageError && (
-        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800">
+        <div className="flex items-center justify-between rounded-sm border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-xs font-semibold text-red-800 dark:text-red-300">
           <span>{pageError}</span>
           <button
             type="button"
             onClick={() => setPageError("")}
             aria-label="Fechar erro"
-            className="cursor-pointer text-red-700"
+            className="cursor-pointer text-red-700 dark:text-red-400"
           >
             <X className="h-4 w-4" />
           </button>
@@ -348,11 +348,11 @@ export default function ClientsView() {
 
       {/* Creation form modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans text-xs">
-          <div className="bg-white rounded-xl border border-zinc-200 shadow-2xl max-w-4xl max-h-[calc(100vh-2rem)] w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-5 border-b border-zinc-100 bg-gradient-to-r from-[#0B2C52] to-[#C8102E] text-white flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-sans text-xs">
+          <div className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-2xl max-w-4xl max-h-[calc(100vh-2rem)] w-full overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 bg-gradient-to-r from-[#0B2C52] to-[#C8102E] text-white flex items-center justify-between">
               <div>
-                <h3 className="text-base font-bold">
+                <h3 className="text-base font-semibold">
                   {editingCompanyId
                     ? "Editar Empresa Cliente"
                     : "Cadastrar Novo Cliente e Empresa"}
@@ -368,7 +368,7 @@ export default function ClientsView() {
                   setIsFormOpen(false);
                   setEditingCompanyId(null);
                 }}
-                className="text-[#F2D3A0] hover:text-white font-bold cursor-pointer"
+                className="text-[#F2D3A0] hover:text-white font-semibold cursor-pointer"
               >
                 Fechar
               </button>
@@ -380,28 +380,28 @@ export default function ClientsView() {
             >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     Nome Fantasia *
                   </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: Alfa Tech"
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                     value={tradeName}
                     onChange={(e) => setTradeName(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     Razão Social *
                   </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: Alfa Tecnologia Ltda"
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                     value={corporateName}
                     onChange={(e) => setCorporateName(e.target.value)}
                   />
@@ -410,28 +410,28 @@ export default function ClientsView() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     CNPJ / Inscrição *
                   </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: 00.000.000/0001-00"
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                     value={cnpj}
                     onChange={(e) => setCnpj(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     Segmento Atuação *
                   </label>
                   <input
                     type="text"
                     required
                     placeholder="Ex: Tecnologia, Varejo, Saúde"
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                     value={segment}
                     onChange={(e) => setSegment(e.target.value)}
                   />
@@ -440,11 +440,11 @@ export default function ClientsView() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     Regime Tributário
                   </label>
                   <select
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer text-xs"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm cursor-pointer text-xs"
                     value={taxRegime}
                     onChange={(e) => setTaxRegime(e.target.value)}
                   >
@@ -455,12 +455,12 @@ export default function ClientsView() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     Limite Aprovação Direta (R$)
                   </label>
                   <input
                     type="number"
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                     value={approvalLimit}
                     onChange={(e) => setApprovalLimit(e.target.value)}
                   />
@@ -468,14 +468,14 @@ export default function ClientsView() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                   Responsável BPO *
                 </label>
                 <select
                   required
                   value={bpoResponsibleId}
                   onChange={(e) => setBpoResponsibleId(e.target.value)}
-                  className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg cursor-pointer text-xs"
+                  className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm cursor-pointer text-xs"
                 >
                   <option value="">Selecione o responsável</option>
                   {bpoUsers.map((user) => (
@@ -486,12 +486,12 @@ export default function ClientsView() {
                 </select>
               </div>
 
-              <div className="border-t border-zinc-100 pt-3 space-y-3">
-                <span className="font-bold text-zinc-700 block">
+              <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 space-y-3">
+                <span className="font-semibold text-zinc-700 dark:text-zinc-300 block">
                   Contatos de Referência
                 </span>
                 {!editingCompanyId && (
-                  <p className="text-[10px] text-zinc-500">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                     O contato principal receberá um usuário de cliente. Quando
                     informado, o contador também receberá um usuário próprio.
                     E-mails já cadastrados serão apenas vinculados à nova empresa.
@@ -500,28 +500,28 @@ export default function ClientsView() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                    <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                       Contato Principal *
                     </label>
                     <input
                       type="text"
                       required
                       placeholder="Nome do cliente"
-                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                      className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                       value={primaryContactName}
                       onChange={(e) => setPrimaryContactName(e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                    <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                       Email Contato *
                     </label>
                     <input
                       type="email"
                       required
                       placeholder="cliente@email.com"
-                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                      className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                       value={primaryContactEmail}
                       onChange={(e) => setPrimaryContactEmail(e.target.value)}
                     />
@@ -530,28 +530,28 @@ export default function ClientsView() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                    <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                       Contador Credenciado
                     </label>
                     <input
                       type="text"
                       required={Boolean(accountantEmail)}
                       placeholder="Nome do contador"
-                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                      className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                       value={accountantName}
                       onChange={(e) => setAccountantName(e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                    <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                       Email Contador
                     </label>
                     <input
                       type="email"
                       required={Boolean(accountantName)}
                       placeholder="contador@email.com"
-                      className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                      className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                       value={accountantEmail}
                       onChange={(e) => setAccountantEmail(e.target.value)}
                     />
@@ -561,19 +561,19 @@ export default function ClientsView() {
 
               <div
                 ref={modulesSectionRef}
-                className="border-t border-zinc-100 pt-3 space-y-3 scroll-mt-4"
+                className="border-t border-zinc-100 dark:border-zinc-800 pt-3 space-y-3 scroll-mt-4"
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <span className="font-bold text-zinc-700 block">
+                    <span className="font-semibold text-zinc-700 dark:text-zinc-300 block">
                       Módulos do Acesso Cliente
                     </span>
-                    <p className="text-[10px] text-zinc-500">
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                       A configuração é aplicada por empresa e pode ser alterada
                       posteriormente.
                     </p>
                   </div>
-                  <label className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 font-bold text-zinc-700 cursor-pointer">
+                  <label className="inline-flex items-center gap-2 rounded-sm border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={ALL_CLIENT_MODULES.every((moduleId) =>
@@ -596,10 +596,10 @@ export default function ClientsView() {
                     return (
                       <label
                         key={module.id}
-                        className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                        className={`flex items-start gap-3 rounded-sm border p-3 cursor-pointer transition-colors ${
                           selected
-                            ? "border-[#C8102E]/40 bg-red-50/50"
-                            : "border-zinc-200 bg-zinc-50/50 hover:bg-zinc-50"
+                            ? "border-[#C8102E]/40 bg-red-50/50 dark:bg-red-500/10"
+                            : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/40 hover:bg-zinc-50 dark:hover:bg-zinc-800/70"
                         }`}
                       >
                         <input
@@ -609,10 +609,10 @@ export default function ClientsView() {
                           className="mt-0.5 accent-[#C8102E]"
                         />
                         <span>
-                          <span className="block font-bold text-zinc-800">
+                          <span className="block font-semibold text-zinc-800 dark:text-zinc-100">
                             {module.label}
                           </span>
-                          <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">
+                          <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                             {module.description}
                           </span>
                         </span>
@@ -620,7 +620,7 @@ export default function ClientsView() {
                     );
                   })}
                 </div>
-                <p className="text-[10px] font-semibold text-zinc-500">
+                <p className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                   {selectedClientModules.length} de {ALL_CLIENT_MODULES.length}{" "}
                   módulos selecionados.
                 </p>
@@ -628,53 +628,53 @@ export default function ClientsView() {
 
               {!editingCompanyId && (
                 <>
-                  <div className="border-t border-zinc-100 pt-3 space-y-3">
+                  <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 space-y-3">
                     <div>
-                      <span className="font-bold text-zinc-700 block">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300 block">
                         Conta Bancária Inicial
                       </span>
-                      <p className="text-[10px] text-zinc-500">
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                         Cadastre uma conta real da empresa; nenhuma conta fictícia
                         será criada.
                       </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Banco / Instituição *
                         </label>
                         <input
                           type="text"
                           required
                           placeholder="Ex: Banco do Brasil"
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                           value={bankName}
                           onChange={(e) => setBankName(e.target.value)}
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                             Agência *
                           </label>
                           <input
                             type="text"
                             required
                             placeholder="0001"
-                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                            className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                             value={bankAgency}
                             onChange={(e) => setBankAgency(e.target.value)}
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                          <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                             Conta *
                           </label>
                           <input
                             type="text"
                             required
                             placeholder="12345-6"
-                            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                            className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                             value={bankAccountNumber}
                             onChange={(e) =>
                               setBankAccountNumber(e.target.value)
@@ -685,7 +685,7 @@ export default function ClientsView() {
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Tipo de conta
                         </label>
                         <select
@@ -695,7 +695,7 @@ export default function ClientsView() {
                               e.target.value as BankAccount["type"],
                             )
                           }
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                         >
                           <option value="Corrente">Corrente</option>
                           <option value="Poupança">Poupança</option>
@@ -703,14 +703,14 @@ export default function ClientsView() {
                         </select>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Saldo inicial (R$)
                         </label>
                         <input
                           type="number"
                           step="0.01"
                           required
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-mono"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs font-mono"
                           value={initialBalance}
                           onChange={(e) => setInitialBalance(e.target.value)}
                         />
@@ -718,70 +718,70 @@ export default function ClientsView() {
                     </div>
                   </div>
 
-                  <div className="border-t border-zinc-100 pt-3 space-y-3">
+                  <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 space-y-3">
                     <div>
-                      <span className="font-bold text-zinc-700 block">
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300 block">
                         Cadastros Iniciais
                       </span>
-                      <p className="text-[10px] text-zinc-500">
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                         Informe um item por linha. Os cadastros poderão ser
                         complementados depois no módulo Cadastros.
                       </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Fornecedores iniciais
                         </label>
                         <textarea
                           rows={4}
                           placeholder={"Fornecedor Alfa\nFornecedor Beta"}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs resize-y"
                           value={initialSuppliers}
                           onChange={(e) => setInitialSuppliers(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Clientes iniciais
                         </label>
                         <textarea
                           rows={4}
                           placeholder={"Cliente Alfa\nCliente Beta"}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs resize-y"
                           value={initialCustomers}
                           onChange={(e) => setInitialCustomers(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Categorias
                         </label>
                         <textarea
                           rows={4}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs resize-y"
                           value={initialCategories}
                           onChange={(e) => setInitialCategories(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Centros de custo
                         </label>
                         <textarea
                           rows={4}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs resize-y"
                           value={initialCostCenters}
                           onChange={(e) => setInitialCostCenters(e.target.value)}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Formas de pagamento
                         </label>
                         <textarea
                           rows={4}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs resize-y"
                           value={initialPaymentMethods}
                           onChange={(e) =>
                             setInitialPaymentMethods(e.target.value)
@@ -789,12 +789,12 @@ export default function ClientsView() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                        <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                           Tipos de documento
                         </label>
                         <textarea
                           rows={4}
-                          className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs resize-y"
+                          className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs resize-y"
                           value={initialDocumentTypes}
                           onChange={(e) =>
                             setInitialDocumentTypes(e.target.value)
@@ -808,7 +808,7 @@ export default function ClientsView() {
 
               {editingCompanyId && (
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase block">
+                  <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase block">
                     Status operacional
                   </label>
                   <select
@@ -816,7 +816,7 @@ export default function ClientsView() {
                     onChange={(e) =>
                       setCompanyStatus(e.target.value as Company["status"])
                     }
-                    className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded-lg text-xs"
+                    className="w-full p-2 bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm text-xs"
                   >
                     <option>Em dia</option>
                     <option>Atenção</option>
@@ -831,26 +831,26 @@ export default function ClientsView() {
               {formError && (
                 <div
                   role="alert"
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                  className="rounded-sm border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300"
                 >
                   {formError}
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 border-t border-zinc-100 pt-4 mt-6">
+              <div className="flex justify-end gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-4 mt-6">
                 <button
                   type="button"
                   onClick={() => {
                     setIsFormOpen(false);
                     setEditingCompanyId(null);
                   }}
-                  className="text-zinc-500 font-bold px-3 py-2 cursor-pointer"
+                  className="text-zinc-500 dark:text-zinc-400 font-semibold px-3 py-2 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="font-bold text-white bg-[#C8102E] hover:bg-[#8F071B] px-4 py-2 rounded-lg cursor-pointer shadow-xs"
+                  className="font-semibold text-white bg-[#C8102E] hover:bg-[#8F071B] px-4 py-2 rounded-sm cursor-pointer shadow-xs"
                 >
                   {editingCompanyId
                     ? "Salvar todas as alterações"
@@ -863,31 +863,31 @@ export default function ClientsView() {
       )}
 
       {companyToDelete && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 dark:bg-black/70 p-4 backdrop-blur-xs">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-company-title"
-            className="w-full max-w-md rounded-xl border border-red-200 bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-sm border border-red-200 dark:border-red-500/25 bg-white dark:bg-[#091320] p-6 shadow-2xl"
           >
             <div className="flex items-start gap-3">
-              <div className="rounded-full bg-red-100 p-2 text-red-700">
+              <div className="rounded-full bg-red-100 dark:bg-red-500/15 p-2 text-red-700 dark:text-red-300">
                 <Trash2 className="h-5 w-5" />
               </div>
               <div>
                 <h3
                   id="delete-company-title"
-                  className="text-base font-black text-zinc-900"
+                  className="text-base font-semibold text-zinc-900 dark:text-zinc-50"
                 >
                   Excluir empresa definitivamente?
                 </h3>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                <p className="mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                   A empresa <strong>{companyToDelete.tradeName}</strong> será
                   removida com contas bancárias, cadastros, lançamentos,
                   aprovações, documentos, relatórios e solicitações vinculadas.
                   Usuários que também acessam outras empresas serão preservados.
                 </p>
-                <p className="mt-2 text-xs font-bold text-red-700">
+                <p className="mt-2 text-xs font-semibold text-red-700 dark:text-red-400">
                   Esta ação não pode ser desfeita sem um backup.
                 </p>
               </div>
@@ -896,14 +896,14 @@ export default function ClientsView() {
               <button
                 type="button"
                 onClick={() => setCompanyToDelete(null)}
-                className="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100"
+                className="cursor-pointer rounded-sm px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleDeleteCompany}
-                className="cursor-pointer rounded-lg bg-red-700 px-4 py-2 text-xs font-bold text-white hover:bg-red-800"
+                className="cursor-pointer rounded-sm bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800"
               >
                 Excluir empresa e dados
               </button>
@@ -913,13 +913,13 @@ export default function ClientsView() {
       )}
 
       {/* List Search */}
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-xs p-4">
+      <div className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs p-4">
         <div className="relative w-full md:w-96 font-sans">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
           <input
             type="text"
             placeholder="Buscar por Razão Social, Nome Fantasia ou CNPJ..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-zinc-50 hover:bg-zinc-100/50 focus:bg-white rounded-lg border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-colors"
+            className="w-full pl-9 pr-4 py-2 text-xs bg-zinc-50 dark:bg-zinc-800/70 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 focus:bg-white dark:focus:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 rounded-sm border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 transition-colors"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -931,63 +931,63 @@ export default function ClientsView() {
         {filteredCompanies.map((company) => (
           <div
             key={company.id}
-            className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs p-5 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center"
+            className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm overflow-hidden shadow-xs p-5 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center"
           >
             {/* General Info */}
             <div className="space-y-2 flex-grow">
               <div className="flex items-center gap-2">
-                <span className="text-[9px] bg-zinc-100 border border-zinc-200 text-zinc-500 font-mono font-bold px-2 py-0.5 rounded">
+                <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 font-mono font-semibold px-2 py-0.5 rounded">
                   CNPJ {company.cnpj}
                 </span>
-                <span className="text-[9px] bg-zinc-950 text-white font-mono px-2 py-0.5 rounded font-bold">
+                <span className="text-[9px] bg-zinc-950 dark:bg-zinc-800 text-white font-mono px-2 py-0.5 rounded font-semibold">
                   ID {company.id}
                 </span>
               </div>
-              <h3 className="text-base font-black text-zinc-900">
+              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
                 {company.tradeName}
               </h3>
-              <p className="text-zinc-400 text-xs">{company.corporateName}</p>
+              <p className="text-zinc-400 dark:text-zinc-500 text-xs">{company.corporateName}</p>
 
-              <div className="flex flex-wrap gap-4 pt-1 text-[11px] text-zinc-500 font-medium">
+              <div className="flex flex-wrap gap-4 pt-1 text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
                 <span className="flex items-center gap-1">
-                  <Layers className="h-3.5 w-3.5 text-zinc-400" />{" "}
+                  <Layers className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />{" "}
                   {company.segment}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Award className="h-3.5 w-3.5 text-zinc-400" />{" "}
+                  <Award className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />{" "}
                   {company.taxRegime}
                 </span>
                 <span className="flex items-center gap-1">
-                  <DollarSign className="h-3.5 w-3.5 text-zinc-400" /> Alçada
+                  <DollarSign className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" /> Alçada
                   Aprovação: R$ {company.approvalLimit.toLocaleString("pt-BR")}
                 </span>
               </div>
             </div>
 
             {/* Contacts details panel */}
-            <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-200/50 space-y-1.5 w-full md:w-80 font-sans text-[11px]">
-              <div className="flex items-center justify-between text-zinc-500 font-medium border-b border-zinc-100 pb-1.5">
+            <div className="bg-zinc-50/50 dark:bg-zinc-800/40 p-4 rounded-sm border border-zinc-200/50 dark:border-zinc-800 space-y-1.5 w-full md:w-80 font-sans text-[11px]">
+              <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400 font-medium border-b border-zinc-100 dark:border-zinc-800 pb-1.5">
                 <span>Contatos e Alinhamentos</span>
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                <span className="text-zinc-800 font-semibold">
+                <User className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
+                <span className="text-zinc-800 dark:text-zinc-100 font-semibold">
                   {company.primaryContactName}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 text-zinc-400 font-mono">
+              <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500 font-mono">
                 <Mail className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{company.primaryContactEmail}</span>
               </div>
-              <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100">
-                <span className="text-zinc-400">
+              <div className="flex items-center gap-1.5 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
+                <span className="text-zinc-400 dark:text-zinc-500">
                   Contador: {company.accountantName}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-100">
-                <span className="text-zinc-400">Módulos do cliente</span>
-                <span className="font-bold text-zinc-700">
+              <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
+                <span className="text-zinc-400 dark:text-zinc-500">Módulos do cliente</span>
+                <span className="font-semibold text-zinc-700 dark:text-zinc-300">
                   {getCompanyClientModules(company).length}/
                   {ALL_CLIENT_MODULES.length}
                 </span>
@@ -998,7 +998,7 @@ export default function ClientsView() {
                 ).map((module) => (
                   <span
                     key={module.id}
-                    className="rounded-md border border-blue-100 bg-blue-50 px-1.5 py-0.5 text-[9px] font-bold text-blue-700"
+                    className="rounded-md border border-blue-100 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 dark:text-blue-300"
                   >
                     {module.label}
                   </span>
@@ -1010,13 +1010,13 @@ export default function ClientsView() {
             <div className="space-y-2 w-full md:w-44 shrink-0 text-right">
               <button
                 onClick={() => openEdit(company)}
-                className="w-full p-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full p-2 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/25 rounded-sm text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Pencil className="h-3.5 w-3.5" /> Editar cadastro
               </button>
               <button
                 onClick={() => openEdit(company, true)}
-                className="w-full p-2 bg-violet-50 text-violet-700 border border-violet-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full p-2 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-500/25 rounded-sm text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Settings2 className="h-3.5 w-3.5" /> Gerenciar módulos
               </button>
@@ -1025,15 +1025,15 @@ export default function ClientsView() {
                   setPageError("");
                   setCompanyToDelete(company);
                 }}
-                className="w-full p-2 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full p-2 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-500/25 rounded-sm text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="h-3.5 w-3.5" /> Excluir empresa
               </button>
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                 Status do Cliente
               </span>
               <select
-                className="w-full p-2 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 rounded-lg text-xs font-bold cursor-pointer"
+                className="w-full p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-sm text-xs font-semibold cursor-pointer"
                 value={company.status}
                 onChange={(e) =>
                   handleStatusChange(company.id, e.target.value as any)
@@ -1046,7 +1046,7 @@ export default function ClientsView() {
                 <option value="Implantação">Implantação</option>
                 <option value="Inativo">Inativo</option>
               </select>
-              <span className="text-[10px] text-zinc-400 block mt-1">
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block mt-1">
                 Modificado reflete no Centro de Operações
               </span>
             </div>

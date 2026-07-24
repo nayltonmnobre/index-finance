@@ -24,8 +24,55 @@ import {
   Send,
   Sparkles,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
+
+const DOC_STAT_VISUALS = [
+  {
+    icon: Upload,
+    tint: "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300",
+  },
+  {
+    icon: CheckCircle2,
+    tint: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  {
+    icon: Clock3,
+    tint: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300",
+  },
+  {
+    icon: X,
+    tint: "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300",
+  },
+] as const;
+
+const DOC_AVATAR_PALETTE = [
+  "bg-indigo-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-sky-500",
+  "bg-purple-500",
+  "bg-teal-500",
+];
+
+const getInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+
+const getAvatarTint = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return DOC_AVATAR_PALETTE[Math.abs(hash) % DOC_AVATAR_PALETTE.length];
+};
 
 interface PendingAnalysis {
   file: File;
@@ -623,31 +670,31 @@ export default function DocumentsView() {
   const rejectedCount = cancelledDocuments.length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {queuedFile && isBpoUser && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={resetBpoUploadFlow}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-2xl w-full max-w-2xl overflow-hidden"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="p-5 border-b border-zinc-200 flex items-start justify-between gap-4">
+            <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black text-[#C8102E] uppercase tracking-wider">
+                <p className="text-[10px] font-semibold text-[#C8102E] uppercase tracking-wider">
                   Defina a finalidade antes da IA
                 </p>
-                <h3 className="text-base font-bold text-zinc-900 mt-1">
+                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 mt-1">
                   Como deseja enviar este arquivo?
                 </h3>
-                <p className="text-xs text-zinc-500 mt-1 break-all">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 break-all">
                   {queuedFile.name}
                 </p>
               </div>
               <button
                 onClick={resetBpoUploadFlow}
-                className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                className="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 cursor-pointer"
                 aria-label="Fechar escolha de finalidade"
               >
                 <X className="h-5 w-5" />
@@ -661,13 +708,13 @@ export default function DocumentsView() {
                     setBpoUploadMode("VIEW_ONLY");
                     setFlowRecipientId("");
                   }}
-                  className={`rounded-xl border p-4 text-left cursor-pointer transition ${bpoUploadMode === "VIEW_ONLY" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-zinc-200 hover:border-blue-300"}`}
+                  className={`rounded-sm border p-4 text-left cursor-pointer transition ${bpoUploadMode === "VIEW_ONLY" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100 dark:bg-blue-500/10 dark:ring-blue-500/20 dark:border-blue-500" : "border-zinc-200 dark:border-zinc-700 hover:border-blue-300 dark:hover:border-blue-500/60"}`}
                 >
-                  <Eye className="h-5 w-5 text-blue-600" />
-                  <p className="text-xs font-bold text-zinc-900 mt-3">
+                  <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-50 mt-3">
                     Compartilhar para visualização
                   </p>
-                  <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                     Envia ao cliente ou contador sem acionar a IA, sem aprovação
                     e sem gerar lançamento financeiro.
                   </p>
@@ -677,13 +724,13 @@ export default function DocumentsView() {
                     setBpoUploadMode("AI_APPROVAL");
                     setFlowRecipientId("");
                   }}
-                  className={`rounded-xl border p-4 text-left cursor-pointer transition ${bpoUploadMode === "AI_APPROVAL" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100" : "border-zinc-200 hover:border-violet-300"}`}
+                  className={`rounded-sm border p-4 text-left cursor-pointer transition ${bpoUploadMode === "AI_APPROVAL" ? "border-violet-500 bg-violet-50 ring-2 ring-violet-100 dark:bg-violet-500/10 dark:ring-violet-500/20 dark:border-violet-500" : "border-zinc-200 dark:border-zinc-700 hover:border-violet-300 dark:hover:border-violet-500/60"}`}
                 >
-                  <Sparkles className="h-5 w-5 text-violet-600" />
-                  <p className="text-xs font-bold text-zinc-900 mt-3">
+                  <Sparkles className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-50 mt-3">
                     Analisar com IA e aprovar
                   </p>
-                  <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
                     A IA identifica os dados; depois da sua revisão, o documento
                     segue para aprovação documental do cliente.
                   </p>
@@ -691,7 +738,7 @@ export default function DocumentsView() {
               </div>
 
               <div className="grid sm:grid-cols-2 gap-3">
-                <label className="text-[10px] font-bold text-zinc-600">
+                <label className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400">
                   Empresa
                   <select
                     value={selectedFlowCompanyId}
@@ -699,7 +746,7 @@ export default function DocumentsView() {
                       setFlowCompanyId(event.target.value);
                       setFlowRecipientId("");
                     }}
-                    className="mt-1 w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-xs bg-white"
+                    className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm px-3 py-2.5 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                   >
                     {availableCompanies.map((company) => (
                       <option key={company.id} value={company.id}>
@@ -708,7 +755,7 @@ export default function DocumentsView() {
                     ))}
                   </select>
                 </label>
-                <label className="text-[10px] font-bold text-zinc-600">
+                <label className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400">
                   {bpoUploadMode === "AI_APPROVAL"
                     ? "Cliente aprovador"
                     : "Destinatário"}
@@ -718,7 +765,7 @@ export default function DocumentsView() {
                     onChange={(event) =>
                       setFlowRecipientId(event.target.value)
                     }
-                    className="mt-1 w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-xs bg-white disabled:bg-zinc-100"
+                    className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm px-3 py-2.5 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
                   >
                     <option value="">
                       {bpoUploadMode
@@ -736,10 +783,10 @@ export default function DocumentsView() {
               </div>
             </div>
 
-            <div className="p-4 border-t border-zinc-200 flex justify-end gap-2">
+            <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2">
               <button
                 onClick={resetBpoUploadFlow}
-                className="px-4 py-2 text-xs font-bold text-zinc-500 cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400 cursor-pointer"
               >
                 Cancelar
               </button>
@@ -750,7 +797,7 @@ export default function DocumentsView() {
                     : analyzeQueuedFileForApproval
                 }
                 disabled={!bpoUploadMode || !flowRecipientId || isAnalyzing}
-                className="px-4 py-2 bg-[#0B2C52] disabled:bg-zinc-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2 bg-[#0B2C52] disabled:bg-zinc-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed text-white rounded-sm text-xs font-semibold flex items-center gap-2 cursor-pointer"
               >
                 {bpoUploadMode === "VIEW_ONLY" ? (
                   <Eye className="h-4 w-4" />
@@ -770,42 +817,42 @@ export default function DocumentsView() {
 
       {previewDocument && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6"
+          className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6"
           onClick={() => setPreviewDocumentId(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] overflow-hidden flex flex-col"
+            className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-2xl w-full max-w-5xl h-[88vh] overflow-hidden flex flex-col"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-zinc-200 flex items-center justify-between gap-4">
+            <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-[#0B2C52] uppercase tracking-wider">
+                <p className="text-[10px] font-semibold text-[#0B2C52] dark:text-[#9DB8D9] uppercase tracking-wider">
                   {historyTab === "received"
                     ? "Documento recebido"
                     : historyTab === "cancelled"
                       ? "Documento cancelado"
                       : "Visualização do documento"}
                 </p>
-                <h3 className="text-sm font-bold text-zinc-900 truncate">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">
                   {previewDocument.name}
                 </h3>
               </div>
               <button
                 onClick={() => setPreviewDocumentId(null)}
-                className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 cursor-pointer"
+                className="p-2 rounded-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 cursor-pointer"
                 aria-label="Fechar visualização"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 min-h-0 bg-zinc-100 p-3 sm:p-5">
+            <div className="flex-1 min-h-0 bg-zinc-100 dark:bg-zinc-900/60 p-3 sm:p-5">
               <DocumentPreview
                 name={previewDocument.name}
                 url={previewDocument.signedUrl}
               />
             </div>
-            <div className="px-5 py-3 border-t border-zinc-200 flex justify-between items-center gap-3 text-xs">
-              <span className="text-zinc-500 truncate">
+            <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center gap-3 text-xs">
+              <span className="text-zinc-500 dark:text-zinc-400 truncate">
                 {isDocumentDeliveredByBpo(
                   previewDocument,
                   currentUser.id,
@@ -819,11 +866,11 @@ export default function DocumentsView() {
                 <DocumentDownloadButton
                   url={previewDocument.signedUrl}
                   name={previewDocument.name}
-                  className="border border-blue-100 text-[#0B2C52] hover:bg-blue-50"
+                  className="border border-blue-100 dark:border-blue-900/40 text-[#0B2C52] dark:text-[#9DB8D9] hover:bg-blue-50 dark:hover:bg-blue-500/10"
                 />
                 <button
                   onClick={() => setPreviewDocumentId(null)}
-                  className="px-4 py-2 bg-[#0B2C52] text-white rounded-lg font-bold cursor-pointer"
+                  className="px-4 py-2 bg-[#0B2C52] text-white rounded-sm font-semibold cursor-pointer"
                 >
                   Fechar
                 </button>
@@ -835,30 +882,30 @@ export default function DocumentsView() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900">
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
             Central de Documentos
           </h2>
-          <p className="text-xs text-zinc-500 mt-1">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
             Envie documentos e acompanhe somente o histórico deste acesso.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-zinc-500 bg-white border border-zinc-200 rounded-lg px-3 py-2">
-          <Database className="h-3.5 w-3.5 text-[#0B2C52]" /> Repositório da{" "}
+        <div className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400 bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm px-3 py-2">
+          <Database className="h-3.5 w-3.5 text-[#0B2C52] dark:text-[#9DB8D9]" /> Repositório da{" "}
           {activeCompany.tradeName}
         </div>
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)] gap-5 items-start">
-        <section className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm min-h-[680px] flex flex-col">
-          <div className="p-4 border-b border-zinc-200 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-[#F2D3A0]/35 flex items-center justify-center">
-              <Bot className="h-5 w-5 text-[#0B2C52]" />
+        <section className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm overflow-hidden shadow-sm min-h-[680px] flex flex-col">
+          <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-[#F2D3A0]/35 dark:bg-[#F2D3A0]/15 flex items-center justify-center">
+              <Bot className="h-5 w-5 text-[#0B2C52] dark:text-[#9DB8D9]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold">Assistente de Documentos</h3>
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Assistente de Documentos</h3>
                 <span
-                  className={`text-[9px] font-bold ${visualAiAvailable ? "text-emerald-600" : visualAiAvailable === false ? "text-amber-600" : "text-zinc-400"}`}
+                  className={`text-[9px] font-semibold ${visualAiAvailable ? "text-emerald-600 dark:text-emerald-400" : visualAiAvailable === false ? "text-amber-600 dark:text-amber-400" : "text-zinc-400 dark:text-zinc-500"}`}
                 >
                   ●{" "}
                   {visualAiAvailable
@@ -868,19 +915,19 @@ export default function DocumentsView() {
                       : "Verificando IA..."}
                 </span>
               </div>
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
                 Identifica, organiza e resume arquivos antes da inclusão.
               </p>
             </div>
           </div>
 
-          <div className="flex-1 bg-zinc-50/60 p-5 space-y-4 overflow-y-auto max-h-[570px]">
+          <div className="flex-1 bg-zinc-50/60 dark:bg-zinc-900/40 p-5 space-y-4 overflow-y-auto max-h-[570px]">
             <div className="flex items-start gap-2">
-              <div className="h-8 w-8 rounded-full bg-[#F2D3A0]/35 flex items-center justify-center shrink-0">
-                <Bot className="h-4 w-4" />
+              <div className="h-8 w-8 rounded-full bg-[#F2D3A0]/35 dark:bg-[#F2D3A0]/15 flex items-center justify-center shrink-0">
+                <Bot className="h-4 w-4 text-[#0B2C52] dark:text-[#9DB8D9]" />
               </div>
-              <div className="bg-white border border-zinc-200 rounded-xl rounded-tl-sm p-3 max-w-[82%]">
-                <p className="text-xs text-zinc-700">
+              <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-3 max-w-[82%]">
+                <p className="text-xs text-zinc-700 dark:text-zinc-300">
                   Olá! Envie boletos, notas fiscais, comprovantes, extratos ou
                   contratos. Vou identificar o arquivo, preparar um resumo e
                   mostrar os dados para sua confirmação.
@@ -894,25 +941,25 @@ export default function DocumentsView() {
               .map((document) => (
                 <div key={`chat-${document.id}`} className="space-y-2">
                   <div className="flex justify-end">
-                    <div className="bg-[#0B2C52] text-white rounded-xl rounded-tr-sm px-3 py-2 max-w-[78%]">
+                    <div className="bg-[#0B2C52] text-white rounded-sm px-3 py-2 max-w-[78%]">
                       <p className="text-xs">
                         Documento enviado: <strong>{document.name}</strong>
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <div className="h-8 w-8 rounded-full bg-[#F2D3A0]/35 flex items-center justify-center shrink-0">
-                      <Bot className="h-4 w-4" />
+                    <div className="h-8 w-8 rounded-full bg-[#F2D3A0]/35 dark:bg-[#F2D3A0]/15 flex items-center justify-center shrink-0">
+                      <Bot className="h-4 w-4 text-[#0B2C52] dark:text-[#9DB8D9]" />
                     </div>
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl rounded-tl-sm p-3 max-w-[85%]">
-                      <p className="text-[10px] text-emerald-700 font-black flex items-center gap-1">
+                    <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25 rounded-sm p-3 max-w-[85%]">
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1">
                         <CheckCircle2 className="h-3.5 w-3.5" /> DOCUMENTO
                         INCLUÍDO
                       </p>
-                      <p className="text-xs text-zinc-700 mt-1">
+                      <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1">
                         {document.aiSummary || document.description}
                       </p>
-                      <p className="text-[9px] text-zinc-400 mt-2">
+                      <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2">
                         {new Date(document.uploadedAt).toLocaleString("pt-BR")}
                       </p>
                     </div>
@@ -921,7 +968,7 @@ export default function DocumentsView() {
               ))}
 
             {isAnalyzing && (
-              <div className="flex items-center gap-2 text-xs text-zinc-500 bg-white border rounded-xl p-4 w-fit">
+              <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-4 w-fit">
                 <Loader2 className="h-4 w-4 animate-spin text-[#C8102E]" />{" "}
                 Lendo e classificando o documento...
               </div>
@@ -929,42 +976,42 @@ export default function DocumentsView() {
 
             {pending && (
               <div className="flex items-start gap-2">
-                <div className="h-8 w-8 rounded-full bg-[#F2D3A0]/35 flex items-center justify-center shrink-0">
+                <div className="h-8 w-8 rounded-full bg-[#F2D3A0]/35 dark:bg-[#F2D3A0]/15 flex items-center justify-center shrink-0">
                   <Sparkles className="h-4 w-4 text-[#C8102E]" />
                 </div>
-                <div className="bg-white border border-zinc-200 rounded-xl rounded-tl-sm p-4 w-full max-w-[92%] space-y-4">
+                <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-4 w-full max-w-[92%] space-y-4">
                   <div className="flex justify-between gap-3">
                     <div>
-                      <p className="text-[10px] text-emerald-700 font-black">
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold">
                         DOCUMENTO RECEBIDO E ANALISADO
                       </p>
-                      <h4 className="text-xs font-bold mt-1 break-all">
+                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50 mt-1 break-all">
                         {pending.file.name}
                       </h4>
                     </div>
-                    <span className="text-[10px] bg-emerald-50 text-emerald-700 h-fit px-2 py-1 rounded-full">
+                    <span className="text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/25 h-fit px-2 py-1 rounded font-semibold">
                       Confiança {pending.confidence}%
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-600 leading-relaxed">
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
                     {pending.summary}
                   </p>
                   <div
-                    className={`text-[10px] font-bold rounded-lg px-3 py-2 ${pending.source === "visual-ai" ? "bg-blue-50 text-blue-700 border border-blue-100" : "bg-amber-50 text-amber-700 border border-amber-200"}`}
+                    className={`text-[10px] font-semibold rounded-sm px-3 py-2 ${pending.source === "visual-ai" ? "bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/25" : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25"}`}
                   >
                     {pending.source === "visual-ai"
                       ? "Leitura visual generativa aplicada ao conteúdo do documento."
                       : "Fallback local aplicado — revise os campos manualmente."}
                   </div>
                   {pending.warnings.length > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <p className="text-[9px] font-black text-amber-700 uppercase">
+                    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 rounded-sm p-3">
+                      <p className="text-[9px] font-semibold text-amber-700 dark:text-amber-300 uppercase">
                         Atenções da leitura
                       </p>
                       {pending.warnings.map((warning) => (
                         <p
                           key={warning}
-                          className="text-[10px] text-amber-800 mt-1"
+                          className="text-[10px] text-amber-800 dark:text-amber-200 mt-1"
                         >
                           • {warning}
                         </p>
@@ -974,7 +1021,7 @@ export default function DocumentsView() {
 
                   {editingAnalysis ? (
                     <div className="grid sm:grid-cols-2 gap-3">
-                      <label className="text-[10px] font-bold text-zinc-500">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                         Tipo de documento
                         <select
                           value={pending.category}
@@ -985,14 +1032,14 @@ export default function DocumentsView() {
                                 .value as Document["category"],
                             })
                           }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs bg-white"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         >
                           {CATEGORIES.map((category) => (
                             <option key={category}>{category}</option>
                           ))}
                         </select>
                       </label>
-                      <label className="text-[10px] font-bold text-zinc-500">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                         Fornecedor
                         <input
                           value={pending.supplier}
@@ -1002,10 +1049,10 @@ export default function DocumentsView() {
                               supplier: event.target.value,
                             })
                           }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         />
                       </label>
-                      <label className="text-[10px] font-bold text-zinc-500">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                         Vencimento
                         <input
                           type="date"
@@ -1016,10 +1063,10 @@ export default function DocumentsView() {
                               dueDate: event.target.value,
                             })
                           }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         />
                       </label>
-                      <label className="text-[10px] font-bold text-zinc-500">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                         Tipo de despesa
                         <input
                           value={pending.expenseType}
@@ -1029,10 +1076,10 @@ export default function DocumentsView() {
                               expenseType: event.target.value,
                             })
                           }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         />
                       </label>
-                      <label className="text-[10px] font-bold text-zinc-500">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                         Número do documento
                         <input
                           value={pending.documentNumber}
@@ -1042,10 +1089,10 @@ export default function DocumentsView() {
                               documentNumber: event.target.value,
                             })
                           }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         />
                       </label>
-                      <label className="text-[10px] font-bold text-zinc-500">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                         Valor
                         <input
                           type="number"
@@ -1058,10 +1105,10 @@ export default function DocumentsView() {
                               amount: Number(event.target.value) || 0,
                             })
                           }
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         />
                       </label>
-                      <label className="text-[10px] font-bold text-zinc-500 sm:col-span-2">
+                      <label className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 sm:col-span-2">
                         Empresa
                         <select
                           disabled={Boolean(approvalRecipientId)}
@@ -1072,7 +1119,7 @@ export default function DocumentsView() {
                               companyId: event.target.value,
                             });
                           }}
-                          className="mt-1 w-full border border-zinc-200 rounded-lg p-2 text-xs bg-white disabled:bg-zinc-100 disabled:text-zinc-500"
+                          className="mt-1 w-full border border-zinc-200 dark:border-zinc-700 rounded-sm p-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 disabled:text-zinc-500 dark:disabled:text-zinc-500"
                         >
                           {availableCompanies.map((company) => (
                             <option key={company.id} value={company.id}>
@@ -1116,12 +1163,12 @@ export default function DocumentsView() {
                       ].map(([label, value]) => (
                         <div
                           key={label}
-                          className="bg-zinc-50 border border-zinc-100 rounded-lg p-2"
+                          className="bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800 rounded-sm p-2"
                         >
-                          <span className="text-[9px] text-zinc-400 font-bold block">
+                          <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-semibold block">
                             {label}
                           </span>
-                          <span className="text-[10px] text-zinc-800 font-semibold">
+                          <span className="text-[10px] text-zinc-800 dark:text-zinc-200 font-semibold">
                             {value}
                           </span>
                         </div>
@@ -1130,7 +1177,7 @@ export default function DocumentsView() {
                   )}
 
                   {isBpoUser && approvalRecipient && (
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] text-blue-700">
+                    <div className="rounded-sm border border-blue-200 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/10 px-3 py-2 text-[10px] text-blue-700 dark:text-blue-300">
                       <strong>Fluxo selecionado:</strong> análise por IA e envio
                       para aprovação documental de {approvalRecipient.name}.
                     </div>
@@ -1140,14 +1187,14 @@ export default function DocumentsView() {
                     {editingAnalysis ? (
                       <button
                         onClick={() => setEditingAnalysis(false)}
-                        className="flex items-center gap-1.5 bg-[#0B2C52] text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
+                        className="flex items-center gap-1.5 bg-[#0B2C52] text-white text-xs font-semibold px-3 py-2 rounded-sm cursor-pointer"
                       >
                         <Save className="h-4 w-4" /> Salvar informações
                       </button>
                     ) : (
                       <button
                         onClick={() => setEditingAnalysis(true)}
-                        className="flex items-center gap-1.5 border border-zinc-200 text-zinc-700 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
+                        className="flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-semibold px-3 py-2 rounded-sm cursor-pointer"
                       >
                         <Pencil className="h-4 w-4" /> Editar informações
                       </button>
@@ -1158,7 +1205,7 @@ export default function DocumentsView() {
                         isAnalyzing ||
                         Boolean(approvalRecipientId && !approvalRecipient)
                       }
-                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-sm cursor-pointer"
                     >
                       {approvalRecipientId ? (
                         <Send className="h-4 w-4" />
@@ -1175,7 +1222,7 @@ export default function DocumentsView() {
                         setEditingAnalysis(false);
                         setApprovalRecipientId("");
                       }}
-                      className="flex items-center gap-1.5 border border-zinc-200 text-zinc-600 text-xs font-bold px-3 py-2 rounded-lg cursor-pointer"
+                      className="flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-xs font-semibold px-3 py-2 rounded-sm cursor-pointer"
                     >
                       <X className="h-4 w-4" /> Cancelar
                     </button>
@@ -1184,14 +1231,14 @@ export default function DocumentsView() {
               </div>
             )}
             {error && (
-              <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-sm p-3">
                 {error}
               </div>
             )}
           </div>
 
           {hasPermission("documents.upload") && (
-            <div className="p-4 border-t border-zinc-200">
+            <div className="p-4 border-t border-zinc-200 dark:border-zinc-800">
               <input
                 ref={inputRef}
                 type="file"
@@ -1204,25 +1251,25 @@ export default function DocumentsView() {
                   onClick={() => inputRef.current?.click()}
                   disabled={isAnalyzing}
                   title="Anexar documento"
-                  className="p-2.5 border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+                  className="p-2.5 border border-zinc-200 dark:border-zinc-700 rounded-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
                 >
-                  <Paperclip className="h-4 w-4 text-zinc-600" />
+                  <Paperclip className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
                 </button>
                 <input
                   value={chatPrompt}
                   onChange={(event) => setChatPrompt(event.target.value)}
                   placeholder="Escreva um contexto e anexe o documento..."
-                  className="flex-1 border border-zinc-200 rounded-lg px-3 text-xs focus:outline-none focus:border-[#0B2C52]"
+                  className="flex-1 border border-zinc-200 dark:border-zinc-700 rounded-sm px-3 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 focus:outline-none focus:border-[#0B2C52] dark:focus:border-[#9DB8D9]"
                 />
                 <button
                   onClick={() => inputRef.current?.click()}
-                  className="p-2.5 bg-[#0B2C52] text-white rounded-lg cursor-pointer"
+                  className="p-2.5 bg-[#0B2C52] text-white rounded-sm cursor-pointer"
                   title="Selecionar arquivo para enviar"
                 >
                   <Send className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-[9px] text-zinc-400 mt-2">
+              <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-2">
                 PDF, JPG, PNG, HEIC, OFX, XML, XLSX e CSV · máximo de{" "}
                 {formatSize(maxDocumentSize)}
                 {!persistentUploads &&
@@ -1233,24 +1280,24 @@ export default function DocumentsView() {
         </section>
 
         <aside className="space-y-4">
-          <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-zinc-200">
-              <h3 className="text-sm font-bold">Histórico de Documentos</h3>
-              <p className="text-[10px] text-zinc-500 mt-0.5">
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Histórico de Documentos</h3>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {historyTab === "sent"
                   ? `Somente os documentos enviados por ${currentUser.name}.`
                   : historyTab === "received"
                     ? "Documentos enviados para este acesso."
                     : "Documentos cancelados deste acesso."}
               </p>
-              <div className="grid grid-cols-3 gap-1 mt-3 bg-zinc-100 rounded-lg p-1">
+              <div className="grid grid-cols-3 gap-1 mt-3 bg-zinc-100 dark:bg-zinc-800/70 rounded-sm p-1">
                 <button
                   onClick={() => {
                     setHistoryTab("sent");
                     setStatusFilter("ALL");
                     setPreviewDocumentId(null);
                   }}
-                  className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "sent" ? "bg-white text-[#0B2C52] shadow-sm" : "text-zinc-500"}`}
+                  className={`rounded-sm px-2 py-1.5 text-[10px] font-semibold cursor-pointer ${historyTab === "sent" ? "bg-white dark:bg-zinc-900 text-[#0B2C52] dark:text-[#9DB8D9] shadow-sm" : "text-zinc-500 dark:text-zinc-400"}`}
                 >
                   Meus envios ({companyDocuments.length})
                 </button>
@@ -1260,7 +1307,7 @@ export default function DocumentsView() {
                     setStatusFilter("ALL");
                     setPreviewDocumentId(null);
                   }}
-                  className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "received" ? "bg-white text-[#0B2C52] shadow-sm" : "text-zinc-500"}`}
+                  className={`rounded-sm px-2 py-1.5 text-[10px] font-semibold cursor-pointer ${historyTab === "received" ? "bg-white dark:bg-zinc-900 text-[#0B2C52] dark:text-[#9DB8D9] shadow-sm" : "text-zinc-500 dark:text-zinc-400"}`}
                 >
                   Recebidos ({receivedDocuments.length})
                 </button>
@@ -1270,35 +1317,35 @@ export default function DocumentsView() {
                     setStatusFilter("ALL");
                     setPreviewDocumentId(null);
                   }}
-                  className={`rounded-md px-2 py-1.5 text-[10px] font-bold cursor-pointer ${historyTab === "cancelled" ? "bg-white text-rose-700 shadow-sm" : "text-zinc-500"}`}
+                  className={`rounded-sm px-2 py-1.5 text-[10px] font-semibold cursor-pointer ${historyTab === "cancelled" ? "bg-white dark:bg-zinc-900 text-rose-700 dark:text-rose-400 shadow-sm" : "text-zinc-500 dark:text-zinc-400"}`}
                 >
                   Cancelados ({cancelledDocuments.length})
                 </button>
               </div>
             </div>
-            <div className="p-3 border-b border-zinc-100 flex gap-2">
+            <div className="p-3 border-b border-zinc-100 dark:border-zinc-800 flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Buscar documento..."
-                  className="w-full border border-zinc-200 rounded-lg pl-8 pr-2 py-2 text-xs"
+                  className="w-full border border-zinc-200 dark:border-zinc-700 rounded-sm pl-8 pr-2 py-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                 />
               </div>
               {historyTab === "cancelled" ? (
-                <div className="flex items-center gap-1.5 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-[10px] font-bold text-rose-700">
+                <div className="flex items-center gap-1.5 rounded-sm border border-rose-100 dark:border-rose-500/25 bg-rose-50 dark:bg-rose-500/10 px-3 py-2 text-[10px] font-semibold text-rose-700 dark:text-rose-300">
                   <X className="h-3.5 w-3.5" /> Somente cancelados
                 </div>
               ) : (
                 <div className="relative">
-                  <Filter className="absolute left-2 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+                  <Filter className="absolute left-2 top-2.5 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
                   <select
                     value={statusFilter}
                     onChange={(event) =>
                       setStatusFilter(event.target.value as typeof statusFilter)
                     }
-                    className="border border-zinc-200 rounded-lg pl-7 pr-2 py-2 text-xs bg-white"
+                    className="border border-zinc-200 dark:border-zinc-700 rounded-sm pl-7 pr-2 py-2 text-xs bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                   >
                     <option value="ALL">Todos</option>
                     <option value="Aguardando Análise">
@@ -1313,9 +1360,9 @@ export default function DocumentsView() {
                 </div>
               )}
             </div>
-            <div className="divide-y divide-zinc-100 max-h-[520px] overflow-y-auto">
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[520px] overflow-y-auto">
               {filteredDocuments.map((document) => (
-                <div key={document.id} className="p-4 hover:bg-zinc-50">
+                <div key={document.id} className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
                   <div className="flex items-start gap-3">
                     <FileTypeIcon
                       name={document.name}
@@ -1324,21 +1371,22 @@ export default function DocumentsView() {
                     <div className="min-w-0 flex-1">
                       <div className="flex justify-between gap-2">
                         <h4
-                          className="text-xs font-bold truncate"
+                          className="text-xs font-semibold text-zinc-900 dark:text-zinc-50 truncate"
                           title={document.name}
                         >
                           {document.name}
                         </h4>
                         <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full h-fit ${document.status === "Lançado" ? "bg-emerald-50 text-emerald-700" : document.status === "Compartilhado" ? "bg-blue-50 text-blue-700" : document.status.includes("Aguardando") ? "bg-amber-50 text-amber-700" : "bg-zinc-100 text-zinc-500"}`}
+                          className={`inline-flex items-center gap-1.5 text-[9px] font-semibold px-2 py-0.5 rounded border h-fit ${document.status === "Lançado" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25" : document.status === "Compartilhado" ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/25" : document.status.includes("Aguardando") ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25" : "bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"}`}
                         >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current shrink-0" />
                           {document.status}
                         </span>
                       </div>
-                      <p className="text-[10px] text-zinc-500 mt-1">
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
                         {document.category} · {document.fileSize}
                       </p>
-                      <p className="text-[9px] text-zinc-400 mt-1 flex items-center gap-1">
+                      <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-1 flex items-center gap-1">
                         <Clock3 className="h-3 w-3" />{" "}
                         {new Date(
                           isDocumentDeliveredByBpo(document, currentUser.id)
@@ -1353,7 +1401,7 @@ export default function DocumentsView() {
                             : "este acesso"}
                       </p>
                       {historyTab === "sent" && document.recipientName && (
-                        <p className="text-[9px] text-blue-600 mt-1">
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 mt-1">
                           Compartilhado para visualização com{" "}
                           {document.recipientName}
                         </p>
@@ -1364,7 +1412,7 @@ export default function DocumentsView() {
                             document,
                             currentUser.id,
                           ))) && (
-                        <p className="text-[9px] text-blue-600 mt-1">
+                        <p className="text-[9px] text-blue-600 dark:text-blue-400 mt-1">
                           Enviado pelo BPO: {document.sharedByName || "Equipe BPO"}
                         </p>
                       )}
@@ -1373,17 +1421,17 @@ export default function DocumentsView() {
                           document,
                           currentUser.id,
                         ) && (
-                          <p className="text-[9px] text-zinc-500 mt-1">
+                          <p className="text-[9px] text-zinc-500 dark:text-zinc-400 mt-1">
                             Enviado por este acesso
                           </p>
                         )}
-                      <p className="text-[10px] text-zinc-500 mt-2 line-clamp-2">
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 line-clamp-2">
                         {document.aiSummary || document.description}
                       </p>
                       <div className="flex gap-1 mt-2">
                         <button
                           onClick={() => setPreviewDocumentId(document.id)}
-                          className="p-1.5 text-[#0B2C52] hover:bg-blue-50 rounded cursor-pointer"
+                          className="p-1.5 text-[#0B2C52] dark:text-[#9DB8D9] hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded cursor-pointer"
                           title="Visualizar"
                         >
                           <Eye className="h-3.5 w-3.5" />
@@ -1392,14 +1440,14 @@ export default function DocumentsView() {
                           url={document.signedUrl}
                           name={document.name}
                           iconOnly
-                          className="text-emerald-700 hover:bg-emerald-50"
+                          className="text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
                         />
                         {historyTab === "sent" &&
                           document.uploadedById === currentUser.id &&
                           hasPermission("documents.upload") && (
                           <button
                             onClick={() => handleDelete(document)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded cursor-pointer"
+                            className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded cursor-pointer"
                             title="Excluir"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -1411,7 +1459,7 @@ export default function DocumentsView() {
                 </div>
               ))}
               {filteredDocuments.length === 0 && (
-                <div className="p-10 text-center text-zinc-400">
+                <div className="p-10 text-center text-zinc-400 dark:text-zinc-500">
                   <FolderOpen className="h-8 w-8 mx-auto mb-2" />
                   <p className="text-xs">Nenhum documento encontrado.</p>
                 </div>
@@ -1419,37 +1467,57 @@ export default function DocumentsView() {
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4 gap-2">
-            <div className="bg-white border rounded-xl p-3">
-              <p className="text-[9px] text-zinc-400 font-bold uppercase">
-                Enviados
-              </p>
-              <p className="text-xl font-black mt-1">
-                {companyDocuments.length}
-              </p>
+            <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-2">
+              <div className={`h-7 w-7 rounded-sm flex items-center justify-center ${DOC_STAT_VISUALS[0].tint}`}>
+                {React.createElement(DOC_STAT_VISUALS[0].icon, { className: "h-3.5 w-3.5", strokeWidth: 2.25 })}
+              </div>
+              <div>
+                <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase">
+                  Enviados
+                </p>
+                <p className="text-xl font-semibold mt-0.5 text-zinc-900 dark:text-zinc-50">
+                  {companyDocuments.length}
+                </p>
+              </div>
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <p className="text-[9px] text-emerald-600 font-bold uppercase">
-                Lançados
-              </p>
-              <p className="text-xl font-black mt-1 text-emerald-700">
-                {included}
-              </p>
+            <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-2">
+              <div className={`h-7 w-7 rounded-sm flex items-center justify-center ${DOC_STAT_VISUALS[1].tint}`}>
+                {React.createElement(DOC_STAT_VISUALS[1].icon, { className: "h-3.5 w-3.5", strokeWidth: 2.25 })}
+              </div>
+              <div>
+                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">
+                  Lançados
+                </p>
+                <p className="text-xl font-semibold mt-0.5 text-emerald-700 dark:text-emerald-400">
+                  {included}
+                </p>
+              </div>
             </div>
-            <div className="bg-white border rounded-xl p-3">
-              <p className="text-[9px] text-amber-600 font-bold uppercase">
-                Aguardando análise
-              </p>
-              <p className="text-xl font-black mt-1 text-amber-700">
-                {pendingCount}
-              </p>
+            <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-2">
+              <div className={`h-7 w-7 rounded-sm flex items-center justify-center ${DOC_STAT_VISUALS[2].tint}`}>
+                {React.createElement(DOC_STAT_VISUALS[2].icon, { className: "h-3.5 w-3.5", strokeWidth: 2.25 })}
+              </div>
+              <div>
+                <p className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold uppercase">
+                  Aguardando análise
+                </p>
+                <p className="text-xl font-semibold mt-0.5 text-amber-700 dark:text-amber-400">
+                  {pendingCount}
+                </p>
+              </div>
             </div>
-            <div className="bg-white border border-rose-200 rounded-xl p-3">
-              <p className="text-[9px] text-rose-600 font-bold uppercase">
-                Cancelados
-              </p>
-              <p className="text-xl font-black mt-1 text-rose-700">
-                {rejectedCount}
-              </p>
+            <div className="bg-white dark:bg-[#091320] border border-rose-200 dark:border-rose-500/25 rounded-sm p-2.5 flex flex-col gap-2">
+              <div className={`h-7 w-7 rounded-sm flex items-center justify-center ${DOC_STAT_VISUALS[3].tint}`}>
+                {React.createElement(DOC_STAT_VISUALS[3].icon, { className: "h-3.5 w-3.5", strokeWidth: 2.25 })}
+              </div>
+              <div>
+                <p className="text-[9px] text-rose-600 dark:text-rose-400 font-semibold uppercase">
+                  Cancelados
+                </p>
+                <p className="text-xl font-semibold mt-0.5 text-rose-700 dark:text-rose-400">
+                  {rejectedCount}
+                </p>
+              </div>
             </div>
           </div>
         </aside>

@@ -33,6 +33,7 @@ import {
   Plus,
   X,
   CreditCard,
+  Wallet,
 } from "lucide-react";
 
 type Screen =
@@ -70,14 +71,14 @@ function PrimaryButton({
     primary: "bg-[#0B2C52] hover:bg-[#0B2C52]/90 text-white",
     danger: "bg-[#C8102E] hover:bg-[#C8102E]/90 text-white",
     outline:
-      "bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50",
+      "bg-white dark:bg-[#091320] border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800",
   } as const;
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]}`}
+      className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-sm text-sm font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${styles[variant]}`}
     >
       {children}
     </button>
@@ -98,17 +99,17 @@ function ScreenHeader({
       {onBack && (
         <button
           onClick={onBack}
-          className="p-2 -ml-2 rounded-lg text-zinc-500 hover:bg-zinc-100 cursor-pointer shrink-0"
+          className="p-2 -ml-2 rounded-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
       )}
       <div className="min-w-0">
-        <h2 className="text-lg font-bold text-zinc-900 leading-tight truncate">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 leading-tight truncate">
           {title}
         </h2>
         {subtitle && (
-          <p className="text-xs text-zinc-500 truncate">{subtitle}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{subtitle}</p>
         )}
       </div>
     </div>
@@ -124,7 +125,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+      <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
         {label}
       </span>
       {children}
@@ -133,7 +134,7 @@ function Field({
 }
 
 const inputClass =
-  "w-full text-base bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0B2C52] focus:border-[#0B2C52]";
+  "w-full text-base bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#0B2C52] focus:border-[#0B2C52] dark:placeholder:text-zinc-500 dark:[color-scheme:dark]";
 
 function PhotoPicker({
   value,
@@ -143,12 +144,12 @@ function PhotoPicker({
   onChange: (url?: string) => void;
 }) {
   return (
-    <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-zinc-300 rounded-xl py-4 text-zinc-400 cursor-pointer hover:border-[#0B2C52]/40 hover:text-[#0B2C52]">
+    <label className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-sm py-4 text-zinc-400 dark:text-zinc-500 cursor-pointer hover:border-[#0B2C52]/40 hover:text-[#0B2C52] dark:hover:text-[#9DB8D9]">
       {value ? (
         <img
           src={value}
           alt="Comprovante"
-          className="h-16 w-16 object-cover rounded-lg"
+          className="h-16 w-16 object-cover rounded-sm"
         />
       ) : (
         <Camera className="h-6 w-6" />
@@ -173,7 +174,7 @@ function PhotoPicker({
 function InlineError({ message }: { message?: string }) {
   if (!message) return null;
   return (
-    <div className="flex items-start gap-2 text-xs text-[#C8102E] bg-[#C8102E]/5 border border-[#C8102E]/20 rounded-lg p-3">
+    <div className="flex items-start gap-2 text-xs text-[#C8102E] dark:text-rose-400 bg-[#C8102E]/5 dark:bg-[#C8102E]/15 border border-[#C8102E]/20 dark:border-rose-500/25 rounded-sm p-3">
       <AlertCircle className="h-4 w-4 shrink-0" /> {message}
     </div>
   );
@@ -187,31 +188,35 @@ function InitialBalanceDivergenceCard({ shift }: { shift: BakeryShift }) {
   const delta = shift.initialBalance - (shift.previousShiftFinalBalance as number);
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-      <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
+    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 rounded-sm p-4 space-y-2">
+      <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
         <AlertCircle className="h-4 w-4 shrink-0" /> Diferença no saldo inicial deste turno
       </div>
       <div className="text-sm space-y-1">
         <div className="flex items-center justify-between">
-          <span className="text-amber-700">Saldo final do turno anterior</span>
-          <span className="font-bold text-amber-900">
+          <span className="text-amber-700 dark:text-amber-400">
+            Saldo final do turno anterior
+          </span>
+          <span className="font-semibold text-amber-900 dark:text-amber-200">
             {formatBRL(shift.previousShiftFinalBalance as number)}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-amber-700">Saldo inicial informado</span>
-          <span className="font-bold text-amber-900">{formatBRL(shift.initialBalance)}</span>
+          <span className="text-amber-700 dark:text-amber-400">Saldo inicial informado</span>
+          <span className="font-semibold text-amber-900 dark:text-amber-200">
+            {formatBRL(shift.initialBalance)}
+          </span>
         </div>
-        <div className="flex items-center justify-between border-t border-amber-200 pt-1">
-          <span className="text-amber-800 font-semibold">Diferença</span>
-          <span className="font-bold text-[#C8102E]">
+        <div className="flex items-center justify-between border-t border-amber-200 dark:border-amber-500/25 pt-1">
+          <span className="text-amber-800 dark:text-amber-300 font-semibold">Diferença</span>
+          <span className="font-semibold text-[#C8102E] dark:text-rose-400">
             {delta < 0 ? "- " : "+ "}
             {formatBRL(Math.abs(delta))}
           </span>
         </div>
       </div>
       {shift.initialBalanceJustification && (
-        <p className="text-xs text-amber-700 italic border-t border-amber-200 pt-2">
+        <p className="text-xs text-amber-700 dark:text-amber-400 italic border-t border-amber-200 dark:border-amber-500/25 pt-2">
           Justificativa na abertura: "{shift.initialBalanceJustification}"
         </p>
       )}
@@ -242,27 +247,29 @@ function MovementRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 bg-white border border-zinc-200 rounded-xl p-3.5 ${canceled ? "opacity-50" : ""}`}
+      className={`flex items-center gap-3 bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-3.5 ${canceled ? "opacity-50" : ""}`}
     >
-      <div className={`p-2 rounded-lg shrink-0 ${iconClass}`}>{icon}</div>
+      <div className={`p-2 rounded-sm shrink-0 ${iconClass}`}>{icon}</div>
       <div className="min-w-0 grow">
-        <p className="text-sm font-bold text-zinc-800 truncate">
+        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 truncate">
           {title}
           {canceled && (
-            <span className="ml-1.5 text-[10px] font-bold text-zinc-400 uppercase">
+            <span className="ml-1.5 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
               Cancelada
             </span>
           )}
         </p>
-        {detail && <p className="text-[11px] text-zinc-400 truncate">{detail}</p>}
-        <p className="text-[11px] text-zinc-400">{time}</p>
+        {detail && (
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate">{detail}</p>
+        )}
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{time}</p>
       </div>
       <div className="text-right shrink-0 space-y-1">
-        <p className={`text-sm font-bold ${amountClass}`}>{amountLabel}</p>
+        <p className={`text-sm font-semibold ${amountClass}`}>{amountLabel}</p>
         {onCancel && !canceled && (
           <button
             onClick={onCancel}
-            className="text-[10px] font-bold text-zinc-400 hover:text-[#C8102E] cursor-pointer"
+            className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 hover:text-[#C8102E] dark:hover:text-rose-400 cursor-pointer"
           >
             Cancelar
           </button>
@@ -369,10 +376,10 @@ function OpenShiftScreen({
               key={label}
               type="button"
               onClick={() => setShiftLabel(label)}
-              className={`px-4 py-2 rounded-full text-sm font-bold border cursor-pointer ${
+              className={`px-4 py-2 rounded-sm text-sm font-semibold border cursor-pointer ${
                 shiftLabel === label
                   ? "bg-[#0B2C52] text-white border-[#0B2C52]"
-                  : "bg-white text-zinc-600 border-zinc-200"
+                  : "bg-white dark:bg-[#091320] text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
               }`}
             >
               {label}
@@ -402,7 +409,7 @@ function OpenShiftScreen({
           <button
             type="button"
             onClick={() => setInitialBalance(String(suggested))}
-            className="text-[11px] font-bold text-[#0B2C52] hover:underline cursor-pointer"
+            className="text-[11px] font-semibold text-[#0B2C52] dark:text-[#9DB8D9] hover:underline cursor-pointer"
           >
             Usar saldo final do turno anterior: {formatBRL(suggested)}
           </button>
@@ -515,10 +522,10 @@ function NewExpenseScreen({
           <button
             type="button"
             onClick={() => setSource("CAIXA")}
-            className={`py-3 rounded-xl border text-sm font-bold cursor-pointer ${
+            className={`py-3 rounded-sm border text-sm font-semibold cursor-pointer ${
               source === "CAIXA"
                 ? "bg-[#0B2C52] text-white border-[#0B2C52]"
-                : "bg-white text-zinc-600 border-zinc-200"
+                : "bg-white dark:bg-[#091320] text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
             }`}
           >
             Caixa
@@ -526,10 +533,10 @@ function NewExpenseScreen({
           <button
             type="button"
             onClick={() => setSource("BOLSA")}
-            className={`py-3 rounded-xl border text-sm font-bold cursor-pointer ${
+            className={`py-3 rounded-sm border text-sm font-semibold cursor-pointer ${
               source === "BOLSA"
                 ? "bg-[#0B2C52] text-white border-[#0B2C52]"
-                : "bg-white text-zinc-600 border-zinc-200"
+                : "bg-white dark:bg-[#091320] text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
             }`}
           >
             Bolsa
@@ -607,8 +614,8 @@ function NewWithdrawalScreen({
         />
       </Field>
 
-      <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-500 flex items-center gap-2">
-        <ArrowDownToLine className="h-4 w-4 text-[#0B2C52]" />
+      <div className="bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 rounded-sm p-3 text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+        <ArrowDownToLine className="h-4 w-4 text-[#0B2C52] dark:text-[#9DB8D9]" />
         Sai do Caixa e entra na Bolsa automaticamente.
       </div>
 
@@ -817,11 +824,11 @@ function CloseScreen({
 
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
             Vendas nas maquininhas (opcional)
           </span>
         </div>
-        <p className="text-[11px] text-zinc-400">
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
           A maquininha é do banco — o valor informado é somado ao saldo do
           banco escolhido.
         </p>
@@ -829,7 +836,7 @@ function CloseScreen({
           <InlineError message="Nenhum banco cadastrado para receber maquininha. Peça ao BPO para cadastrar uma conta bancária." />
         )}
         {machines.length === 0 && banks.length > 0 && (
-          <p className="text-xs text-zinc-400 italic">
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 italic">
             Nenhuma maquininha adicionada. Adicione se houve vendas no cartão.
           </p>
         )}
@@ -837,7 +844,7 @@ function CloseScreen({
           <div key={row.rowId} className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
               <select
-                className={`${inputClass} py-2.5`}
+                className={`${inputClass} py-2.5 dark:[color-scheme:dark]`}
                 value={row.bankAccountId}
                 onChange={(event) =>
                   updateMachine(row.rowId, { bankAccountId: event.target.value })
@@ -865,7 +872,7 @@ function CloseScreen({
             <button
               type="button"
               onClick={() => removeMachine(row.rowId)}
-              className="p-2 text-zinc-400 hover:text-[#C8102E] cursor-pointer shrink-0"
+              className="p-2 text-zinc-400 dark:text-zinc-500 hover:text-[#C8102E] dark:hover:text-rose-400 cursor-pointer shrink-0"
               aria-label="Remover maquininha"
             >
               <X className="h-4 w-4" />
@@ -876,7 +883,7 @@ function CloseScreen({
           type="button"
           onClick={addMachine}
           disabled={banks.length === 0}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-zinc-300 text-xs font-bold text-zinc-500 hover:border-[#0B2C52]/40 hover:text-[#0B2C52] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-sm border border-dashed border-zinc-300 dark:border-zinc-700 text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:border-[#0B2C52]/40 hover:text-[#0B2C52] dark:hover:text-[#9DB8D9] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="h-3.5 w-3.5" /> Adicionar maquininha
         </button>
@@ -958,7 +965,7 @@ function CloseSummaryScreen({
     <div className="space-y-4">
       <ScreenHeader title="Resumo do turno" onBack={onBack} />
 
-      <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
+      <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm divide-y divide-zinc-100 dark:divide-zinc-800">
         {[
           ["Operadora", shift.operatorName],
           ["Turno", `${shift.shiftLabel} · ${shift.registerName}`],
@@ -969,78 +976,95 @@ function CloseSummaryScreen({
           ["Saldo final", formatBRL(pendingClose.finalBalance)],
         ].map(([label, value]) => (
           <div key={label} className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <span className="text-zinc-500">{label}</span>
-            <span className="font-bold text-zinc-800">{value}</span>
+            <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+            <span className="font-semibold text-zinc-800 dark:text-zinc-100">{value}</span>
           </div>
         ))}
       </div>
 
       <InitialBalanceDivergenceCard shift={shift} />
 
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl divide-y divide-emerald-100">
+      <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25 rounded-sm divide-y divide-emerald-100 dark:divide-emerald-500/20">
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-          <span className="text-emerald-700 font-semibold">Receita estimada em espécie</span>
-          <span className="font-bold text-emerald-800">
+          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+            Receita estimada em espécie
+          </span>
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
             {formatBRL(previewTotals.estimatedCashRevenue)}
           </span>
         </div>
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-          <span className="text-emerald-700 font-semibold">Vendas no PIX</span>
-          <span className="font-bold text-emerald-800">
+          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+            Vendas no PIX
+          </span>
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
             {formatBRL(previewTotals.pixTotal)}
           </span>
         </div>
         <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-          <span className="text-emerald-700 font-semibold">Vendas nas maquininhas</span>
-          <span className="font-bold text-emerald-800">
+          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+            Vendas nas maquininhas
+          </span>
+          <span className="font-semibold text-emerald-800 dark:text-emerald-300">
             {formatBRL(previewTotals.cardMachineTotal)}
           </span>
         </div>
         <div className="flex items-center justify-between px-4 py-3 text-base">
-          <span className="text-emerald-800 font-bold">Receita total do turno</span>
-          <span className="font-bold text-emerald-900">
+          <span className="text-emerald-800 dark:text-emerald-300 font-semibold">
+            Receita total do turno
+          </span>
+          <span className="font-semibold text-emerald-900 dark:text-emerald-200">
             {formatBRL(previewTotals.totalRevenue)}
           </span>
         </div>
       </div>
 
       {Object.keys(pixByBank).length > 0 && (
-        <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
+        <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm divide-y divide-zinc-100 dark:divide-zinc-800">
           {Object.entries(pixByBank).map(([bank, value]: [string, number]) => (
             <div key={bank} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span className="text-zinc-500">{bank}</span>
-              <span className="font-bold text-zinc-800">{formatBRL(value)}</span>
+              <span className="text-zinc-500 dark:text-zinc-400">{bank}</span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+                {formatBRL(value)}
+              </span>
             </div>
           ))}
           <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <span className="text-zinc-500 font-bold">Total no PIX</span>
-            <span className="font-bold text-zinc-800">{formatBRL(previewTotals.pixTotal)}</span>
+            <span className="text-zinc-500 dark:text-zinc-400 font-semibold">Total no PIX</span>
+            <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+              {formatBRL(previewTotals.pixTotal)}
+            </span>
           </div>
         </div>
       )}
 
       {pendingClose.cardMachineEntries.length > 0 && (
-        <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
+        <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm divide-y divide-zinc-100 dark:divide-zinc-800">
           {pendingClose.cardMachineEntries.map((entry) => (
             <div key={entry.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span className="text-zinc-500 flex items-center gap-1.5">
-                <CreditCard className="h-3.5 w-3.5 text-zinc-400" /> {entry.bankAccountName}
+              <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />{" "}
+                {entry.bankAccountName}
               </span>
-              <span className="font-bold text-zinc-800">{formatBRL(entry.amount)}</span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-100">
+                {formatBRL(entry.amount)}
+              </span>
             </div>
           ))}
           <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <span className="text-zinc-500 font-bold">Total nas maquininhas</span>
-            <span className="font-bold text-zinc-800">
+            <span className="text-zinc-500 dark:text-zinc-400 font-semibold">
+              Total nas maquininhas
+            </span>
+            <span className="font-semibold text-zinc-800 dark:text-zinc-100">
               {formatBRL(previewTotals.cardMachineTotal)}
             </span>
           </div>
         </div>
       )}
 
-      <div className="bg-[#0B2C52] rounded-xl p-4 text-white flex items-center justify-between">
-        <p className="text-xs font-bold text-[#F2D3A0]/80 uppercase">{bolsaBalanceLabel}</p>
-        <p className="text-lg font-bold">{formatBRL(bolsaBalance)}</p>
+      <div className="bg-[#0B2C52] rounded-sm p-4 text-white flex items-center justify-between">
+        <p className="text-xs font-semibold text-[#F2D3A0]/80 uppercase">{bolsaBalanceLabel}</p>
+        <p className="text-lg font-semibold">{formatBRL(bolsaBalance)}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-2.5">
@@ -1062,11 +1086,13 @@ function ClosedScreen({
 }) {
   return (
     <div className="space-y-5 text-center py-6">
-      <div className="mx-auto h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center">
-        <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+      <div className="mx-auto h-14 w-14 rounded-full bg-emerald-50 dark:bg-emerald-500/15 flex items-center justify-center">
+        <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
       </div>
-      <h2 className="text-lg font-bold text-zinc-900">Turno fechado com sucesso!</h2>
-      <p className="text-sm text-zinc-500">
+      <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+        Turno fechado com sucesso!
+      </h2>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
         O resumo foi salvo e o turno já está disponível no histórico.
       </p>
       <PrimaryButton variant="outline" onClick={onViewHistory}>
@@ -1161,21 +1187,21 @@ export default function OperatorApp() {
   const renderHome = () => (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-[#0B2C52] text-[#F2D3A0]">
+        <div className="p-2.5 rounded-sm bg-[#0B2C52] text-[#F2D3A0]">
           <Store className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+          <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
             Caixa da Padaria
           </p>
-          <h1 className="text-lg font-bold text-zinc-900">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
             Olá, {currentUser.name.split(" ")[0]}!
           </h1>
         </div>
       </div>
 
-      <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-2 shadow-xs">
-        <p className="text-xs text-zinc-400 capitalize">
+      <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-4 space-y-2 shadow-xs">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 capitalize">
           {now.toLocaleDateString("pt-BR", {
             weekday: "long",
             day: "2-digit",
@@ -1185,19 +1211,19 @@ export default function OperatorApp() {
         </p>
         {openShift ? (
           <>
-            <p className="text-sm font-bold text-zinc-800">
+            <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               Turno atual
             </p>
             <div className="flex items-center gap-2">
-              <span className="text-base font-bold text-zinc-900">
+              <span className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
                 {openShift.shiftLabel}
               </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25 px-2.5 py-1 rounded">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 {openShift.status}
               </span>
             </div>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               {openShift.registerName} · Aberto às{" "}
               {new Date(openShift.openedAt).toLocaleTimeString("pt-BR", {
                 hour: "2-digit",
@@ -1206,20 +1232,20 @@ export default function OperatorApp() {
             </p>
           </>
         ) : (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Nenhum turno em andamento no momento.
           </p>
         )}
       </div>
 
-      <div className="bg-[#0B2C52] rounded-xl p-4 space-y-1 text-white shadow-xs">
-        <p className="text-[11px] font-bold text-[#F2D3A0]/80 uppercase tracking-wider">
+      <div className="bg-[#0B2C52] rounded-sm p-4 space-y-1 text-white shadow-xs">
+        <p className="text-[11px] font-semibold text-[#F2D3A0]/80 uppercase tracking-wider">
           {bolsaBalanceLabel}
         </p>
-        <p className="text-2xl font-bold">{formatBRL(bolsaBalanceValue)}</p>
+        <p className="text-2xl font-semibold">{formatBRL(bolsaBalanceValue)}</p>
         <button
           onClick={() => setScreen("bolsa")}
-          className="text-[11px] font-bold text-[#F2D3A0] hover:underline cursor-pointer inline-flex items-center gap-1"
+          className="text-[11px] font-semibold text-[#F2D3A0] hover:underline cursor-pointer inline-flex items-center gap-1"
         >
           Ver movimentações de hoje <ChevronRight className="h-3.5 w-3.5" />
         </button>
@@ -1274,43 +1300,85 @@ export default function OperatorApp() {
           onBack={goHome}
         />
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white border border-zinc-200 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase">Saldo inicial</p>
-            <p className="text-base font-bold text-zinc-900">
-              {formatBRL(openShift.initialBalance)}
-            </p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-1.5">
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-[#0B2C52]/5 text-[#0B2C52] dark:bg-[#123B6B]/25 dark:text-[#9DB8D9]">
+              <Wallet className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
+                Saldo inicial
+              </p>
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                {formatBRL(openShift.initialBalance)}
+              </p>
+            </div>
           </div>
-          <div className="bg-white border border-zinc-200 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase">Despesas do Caixa</p>
-            <p className="text-base font-bold text-zinc-900">
-              {formatBRL(totals.caixaExpenses)}
-            </p>
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-1.5">
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+              <Receipt className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
+                Despesas do Caixa
+              </p>
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                {formatBRL(totals.caixaExpenses)}
+              </p>
+            </div>
           </div>
-          <div className="bg-white border border-zinc-200 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase">Despesas da Bolsa</p>
-            <p className="text-base font-bold text-zinc-900">
-              {formatBRL(totals.bolsaExpenses)}
-            </p>
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-1.5">
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300">
+              <Receipt className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
+                Despesas da Bolsa
+              </p>
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                {formatBRL(totals.bolsaExpenses)}
+              </p>
+            </div>
           </div>
-          <div className="bg-white border border-zinc-200 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase">Sangrias</p>
-            <p className="text-base font-bold text-zinc-900">
-              {formatBRL(totals.withdrawalsTotal)}
-            </p>
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-1.5">
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300">
+              <ArrowDownToLine className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
+                Sangrias
+              </p>
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                {formatBRL(totals.withdrawalsTotal)}
+              </p>
+            </div>
           </div>
-          <div className="bg-white border border-zinc-200 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-zinc-400 uppercase">Vendas no PIX</p>
-            <p className="text-base font-bold text-zinc-900">
-              {formatBRL(totals.pixTotal)}
-            </p>
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-2.5 flex flex-col gap-1.5">
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+              <QrCode className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
+                Vendas no PIX
+              </p>
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                {formatBRL(totals.pixTotal)}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setScreen("bolsa")}
-            className="bg-[#0B2C52] rounded-xl p-3 text-left text-white cursor-pointer"
+            className="bg-[#0B2C52] rounded-sm p-2.5 text-left text-white cursor-pointer flex flex-col gap-1.5"
           >
-            <p className="text-[10px] font-bold text-[#F2D3A0]/80 uppercase">{bolsaBalanceLabel}</p>
-            <p className="text-base font-bold">{formatBRL(bolsaBalanceValue)}</p>
+            <div className="h-7 w-7 rounded-sm flex items-center justify-center bg-white/10 text-[#F2D3A0]">
+              <Landmark className="h-3.5 w-3.5" strokeWidth={2.25} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-[#F2D3A0]/80 uppercase">
+                {bolsaBalanceLabel}
+              </p>
+              <p className="text-base font-semibold">{formatBRL(bolsaBalanceValue)}</p>
+            </div>
           </button>
         </div>
 
@@ -1330,11 +1398,11 @@ export default function OperatorApp() {
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide">
+          <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
             Movimentações do turno
           </p>
           {movements.length === 0 && (
-            <p className="text-sm text-zinc-400 italic py-4 text-center">
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 italic py-4 text-center">
               Nenhuma movimentação registrada ainda.
             </p>
           )}
@@ -1349,11 +1417,11 @@ export default function OperatorApp() {
                 <div key={id}>
                   <MovementRow
                     icon={<Receipt className="h-4 w-4" />}
-                    iconClass="bg-amber-50 text-amber-600"
+                    iconClass="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
                     title={expense.description}
                     detail={`Origem: ${expense.source === "CAIXA" ? "Caixa" : "Bolsa"}`}
                     amountLabel={`- ${formatBRL(expense.amount)}`}
-                    amountClass="text-[#C8102E]"
+                    amountClass="text-[#C8102E] dark:text-rose-400"
                     time={time}
                     canceled={expense.canceled}
                     onCancel={() => bakery.cancelExpense(expense.id)}
@@ -1367,11 +1435,11 @@ export default function OperatorApp() {
                 <div key={id}>
                   <MovementRow
                     icon={<ArrowDownToLine className="h-4 w-4" />}
-                    iconClass="bg-sky-50 text-sky-600"
+                    iconClass="bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300"
                     title="Sangria"
                     detail="Caixa → Bolsa"
                     amountLabel={formatBRL(withdrawal.amount)}
-                    amountClass="text-zinc-800"
+                    amountClass="text-zinc-800 dark:text-zinc-100"
                     time={time}
                     canceled={withdrawal.canceled}
                     onCancel={() => bakery.cancelWithdrawal(withdrawal.id)}
@@ -1384,11 +1452,11 @@ export default function OperatorApp() {
               <div key={id}>
                 <MovementRow
                   icon={<QrCode className="h-4 w-4" />}
-                  iconClass="bg-emerald-50 text-emerald-600"
+                  iconClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
                   title="Venda no PIX"
                   detail={`Recebido em: ${sale.bankAccountName} · ${sale.reconciliationStatus}`}
                   amountLabel={`+ ${formatBRL(sale.amount)}`}
-                  amountClass="text-emerald-700"
+                  amountClass="text-emerald-700 dark:text-emerald-400"
                   time={time}
                   canceled={sale.canceled}
                   onCancel={
@@ -1427,33 +1495,35 @@ export default function OperatorApp() {
         <ScreenHeader title="Movimentações da Bolsa" subtitle="Hoje" onBack={goHome} />
 
         {!isRestrictedBolsaView && (
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-4 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase">
+              <p className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
                 Saldo no início do dia
               </p>
-              <p className="text-base font-bold text-zinc-900">
+              <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
                 {formatBRL(startOfDayBalance)}
               </p>
             </div>
-            <Landmark className="h-6 w-6 text-zinc-300" />
+            <Landmark className="h-6 w-6 text-zinc-300 dark:text-zinc-600" />
           </div>
         )}
 
         <div className="space-y-2">
           {events.length === 0 && (
-            <p className="text-sm text-zinc-400 italic py-4 text-center">
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 italic py-4 text-center">
               Nenhuma movimentação da Bolsa hoje.
             </p>
           )}
           {events.map((event, index) => (
             <div
               key={index}
-              className="flex items-center justify-between bg-white border border-zinc-200 rounded-xl p-3.5"
+              className="flex items-center justify-between bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-3.5"
             >
               <div>
-                <p className="text-sm font-bold text-zinc-800">{event.label}</p>
-                <p className="text-[11px] text-zinc-400">
+                <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  {event.label}
+                </p>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
                   {new Date(event.time).toLocaleTimeString("pt-BR", {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -1461,7 +1531,7 @@ export default function OperatorApp() {
                 </p>
               </div>
               <p
-                className={`text-sm font-bold ${event.amount >= 0 ? "text-emerald-700" : "text-[#C8102E]"}`}
+                className={`text-sm font-semibold ${event.amount >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-[#C8102E] dark:text-rose-400"}`}
               >
                 {event.amount >= 0 ? "+ " : "- "}
                 {formatBRL(Math.abs(event.amount))}
@@ -1470,11 +1540,11 @@ export default function OperatorApp() {
           ))}
         </div>
 
-        <div className="bg-[#0B2C52] rounded-xl p-4 text-white flex items-center justify-between">
-          <p className="text-xs font-bold text-[#F2D3A0]/80 uppercase">
+        <div className="bg-[#0B2C52] rounded-sm p-4 text-white flex items-center justify-between">
+          <p className="text-xs font-semibold text-[#F2D3A0]/80 uppercase">
             {isRestrictedBolsaView ? "Saldo diário da Bolsa" : "Saldo atual"}
           </p>
-          <p className="text-xl font-bold">{formatBRL(bolsaBalanceValue)}</p>
+          <p className="text-xl font-semibold">{formatBRL(bolsaBalanceValue)}</p>
         </div>
       </div>
     );
@@ -1495,7 +1565,7 @@ export default function OperatorApp() {
       <div className="space-y-4">
         <ScreenHeader title="Histórico" onBack={goHome} />
         {own.length === 0 && (
-          <p className="text-sm text-zinc-400 italic py-8 text-center">
+          <p className="text-sm text-zinc-400 dark:text-zinc-500 italic py-8 text-center">
             Você ainda não tem turnos registrados.
           </p>
         )}
@@ -1506,41 +1576,41 @@ export default function OperatorApp() {
               setHistoryShiftId(shift.id);
               setScreen("history-detail");
             }}
-            className="w-full text-left bg-white border border-zinc-200 rounded-xl p-4 space-y-2 cursor-pointer hover:border-[#0B2C52]/30"
+            className="w-full text-left bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-4 space-y-2 cursor-pointer hover:border-[#0B2C52]/30 dark:hover:border-[#9DB8D9]/30"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-zinc-900">
+              <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 {new Date(shift.openedAt).toLocaleDateString("pt-BR")} — {shift.shiftLabel}
               </span>
               <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                   shift.status === "Fechado"
-                    ? "bg-zinc-50 text-zinc-600 border-zinc-200"
+                    ? "bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
                     : shift.status === "Cancelado"
-                      ? "bg-rose-50 text-rose-600 border-rose-200"
-                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      ? "bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/25"
+                      : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/25"
                 }`}
               >
                 {shift.status}
               </span>
             </div>
             {shift.status === "Fechado" && (
-              <div className="grid grid-cols-3 gap-2 text-xs text-zinc-500">
+              <div className="grid grid-cols-3 gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                 <div>
                   <p>Em espécie</p>
-                  <p className="font-bold text-zinc-800">
+                  <p className="font-semibold text-zinc-800 dark:text-zinc-100">
                     {formatBRL(shift.estimatedCashRevenue || 0)}
                   </p>
                 </div>
                 <div>
                   <p>PIX</p>
-                  <p className="font-bold text-zinc-800">
+                  <p className="font-semibold text-zinc-800 dark:text-zinc-100">
                     {formatBRL(shift.pixRevenueTotal || 0)}
                   </p>
                 </div>
                 <div>
                   <p>Total</p>
-                  <p className="font-bold text-zinc-800">
+                  <p className="font-semibold text-zinc-800 dark:text-zinc-100">
                     {formatBRL(shift.totalRevenue || 0)}
                   </p>
                 </div>
@@ -1579,7 +1649,7 @@ export default function OperatorApp() {
           onBack={() => setScreen("history")}
         />
         <InitialBalanceDivergenceCard shift={shift} />
-        <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
+        <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm divide-y divide-zinc-100 dark:divide-zinc-800">
           {[
             ["Saldo inicial", formatBRL(shift.initialBalance)],
             ["Despesas do Caixa", formatBRL(historyTotals.caixaExpenses)],
@@ -1592,39 +1662,39 @@ export default function OperatorApp() {
             ["Receita total", formatBRL(shift.totalRevenue || 0)],
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between px-4 py-2.5 text-sm">
-              <span className="text-zinc-500">{label}</span>
-              <span className="font-bold text-zinc-800">{value}</span>
+              <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-100">{value}</span>
             </div>
           ))}
         </div>
         {Object.keys(pixByBank).length > 0 && (
-          <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
-            <div className="px-4 py-2 text-[11px] font-bold text-zinc-400 uppercase">
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm divide-y divide-zinc-100 dark:divide-zinc-800">
+            <div className="px-4 py-2 text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
               PIX por banco
             </div>
             {Object.entries(pixByBank).map(([bank, value]: [string, number]) => (
               <div key={bank} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <span className="text-zinc-500">{bank}</span>
-                <span className="font-bold text-zinc-800">{formatBRL(value)}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{bank}</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-100">{formatBRL(value)}</span>
               </div>
             ))}
           </div>
         )}
         {(shift.cardMachineEntries || []).length > 0 && (
-          <div className="bg-white border border-zinc-200 rounded-xl divide-y divide-zinc-100">
-            <div className="px-4 py-2 text-[11px] font-bold text-zinc-400 uppercase">
+          <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm divide-y divide-zinc-100 dark:divide-zinc-800">
+            <div className="px-4 py-2 text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase">
               Maquininhas
             </div>
             {(shift.cardMachineEntries || []).map((entry) => (
               <div key={entry.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <span className="text-zinc-500">{entry.bankAccountName}</span>
-                <span className="font-bold text-zinc-800">{formatBRL(entry.amount)}</span>
+                <span className="text-zinc-500 dark:text-zinc-400">{entry.bankAccountName}</span>
+                <span className="font-semibold text-zinc-800 dark:text-zinc-100">{formatBRL(entry.amount)}</span>
               </div>
             ))}
           </div>
         )}
         {shift.status === "Cancelado" && (
-          <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25 rounded-sm p-3">
             <Ban className="h-4 w-4" /> Este turno foi cancelado pelo BPO.
           </div>
         )}
@@ -1729,19 +1799,19 @@ export default function OperatorApp() {
     <div className="max-w-md mx-auto pb-8">
       {screens[screen]()}
       {(screen === "home" || screen === "history") && (
-        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-zinc-200 flex items-center justify-around py-2 z-20">
+        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white dark:bg-[#091320] border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-around py-2 z-20">
           <button
             onClick={goHome}
-            className={`flex flex-col items-center gap-0.5 px-6 py-1 text-[11px] font-bold cursor-pointer ${
-              screen === "home" ? "text-[#0B2C52]" : "text-zinc-400"
+            className={`flex flex-col items-center gap-0.5 px-6 py-1 text-[11px] font-semibold cursor-pointer ${
+              screen === "home" ? "text-[#0B2C52] dark:text-[#9DB8D9]" : "text-zinc-400 dark:text-zinc-500"
             }`}
           >
             <Home className="h-5 w-5" /> Início
           </button>
           <button
             onClick={() => setScreen("history")}
-            className={`flex flex-col items-center gap-0.5 px-6 py-1 text-[11px] font-bold cursor-pointer ${
-              screen === "history" ? "text-[#0B2C52]" : "text-zinc-400"
+            className={`flex flex-col items-center gap-0.5 px-6 py-1 text-[11px] font-semibold cursor-pointer ${
+              screen === "history" ? "text-[#0B2C52] dark:text-[#9DB8D9]" : "text-zinc-400 dark:text-zinc-500"
             }`}
           >
             <History className="h-5 w-5" /> Histórico

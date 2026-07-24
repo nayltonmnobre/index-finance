@@ -27,6 +27,17 @@ const STATUS_LABELS: Record<SupportTicketStatus, string> = {
   ENCERRADO: "Encerrado",
 };
 
+const AVATAR_PALETTE = ["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-sky-500", "bg-purple-500", "bg-teal-500"];
+
+const getInitials = (name: string) =>
+  name.trim().split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+
+const getAvatarTint = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+};
+
 export default function ServiceDeskView() {
   const {
     currentUser,
@@ -67,7 +78,7 @@ export default function ServiceDeskView() {
 
   if (currentUser.role !== "BPO_ADMIN") {
     return (
-      <div className="rounded-xl border bg-white p-8 text-center text-xs text-zinc-500">
+      <div className="rounded-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#091320] p-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
         Acesso exclusivo do Administrador BPO.
       </div>
     );
@@ -115,41 +126,41 @@ export default function ServiceDeskView() {
       label: "Novos",
       value: count(["ABERTO"]),
       icon: Inbox,
-      color: "text-blue-700 bg-blue-50",
+      color: "text-blue-700 bg-blue-50 dark:bg-blue-500/15 dark:text-blue-300",
     },
     {
       label: "Em atendimento",
       value: count(["EM_ATENDIMENTO"]),
       icon: Clock3,
-      color: "text-amber-700 bg-amber-50",
+      color: "text-amber-700 bg-amber-50 dark:bg-amber-500/15 dark:text-amber-300",
     },
     {
       label: "Aguardando cliente",
       value: count(["AGUARDANDO_SOLICITANTE"]),
       icon: AlertCircle,
-      color: "text-purple-700 bg-purple-50",
+      color: "text-purple-700 bg-purple-50 dark:bg-purple-500/15 dark:text-purple-300",
     },
     {
       label: "Concluídos",
       value: count(["RESOLVIDO", "ENCERRADO"]),
       icon: CheckCircle2,
-      color: "text-emerald-700 bg-emerald-50",
+      color: "text-emerald-700 bg-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-300",
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold text-zinc-900">
+        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
           Central de Requerimentos
         </h2>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           Monitore, atribua e responda solicitações de clientes e contadores.
         </p>
       </div>
 
       {feedback && (
-        <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
+        <div className="flex items-center justify-between rounded-sm border border-emerald-200 dark:border-emerald-500/25 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
           <span>{feedback}</span>
           <button
             type="button"
@@ -162,22 +173,22 @@ export default function ServiceDeskView() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.label}
-              className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4"
+              className="flex items-center gap-3 rounded-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#091320] p-3"
             >
-              <div className={`rounded-lg p-2 ${card.color}`}>
+              <div className={`rounded-sm p-2 ${card.color}`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase text-zinc-400">
+                <p className="text-[10px] font-semibold uppercase text-zinc-400 dark:text-zinc-500">
                   {card.label}
                 </p>
-                <p className="text-xl font-black">{card.value}</p>
+                <p className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{card.value}</p>
               </div>
             </div>
           );
@@ -190,7 +201,7 @@ export default function ServiceDeskView() {
           onChange={(event) =>
             setStatusFilter(event.target.value as typeof statusFilter)
           }
-          className="rounded-lg border border-zinc-200 bg-white p-2 text-xs"
+          className="rounded-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 p-2 text-xs dark:[color-scheme:dark]"
         >
           <option value="ALL">Todos os status</option>
           {Object.entries(STATUS_LABELS).map(([key, label]) => (
@@ -202,11 +213,11 @@ export default function ServiceDeskView() {
       </div>
 
       <div className="grid min-h-[570px] gap-5 xl:grid-cols-[360px_1fr]">
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <div className="border-b p-4 text-xs font-bold">
+        <div className="overflow-hidden rounded-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#091320]">
+          <div className="border-b border-zinc-200 dark:border-zinc-800 p-4 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
             Fila de atendimento ({tickets.length})
           </div>
-          <div className="max-h-[620px] divide-y overflow-y-auto">
+          <div className="max-h-[620px] divide-y divide-zinc-200 dark:divide-zinc-800 overflow-y-auto">
             {tickets.map((ticket) => (
               <button
                 type="button"
@@ -214,78 +225,84 @@ export default function ServiceDeskView() {
                 onClick={() => setSelectedId(ticket.id)}
                 className={`w-full cursor-pointer p-4 text-left ${
                   selected?.id === ticket.id
-                    ? "border-l-4 border-[#C8102E] bg-[#0B2C52]/5"
-                    : "hover:bg-zinc-50"
+                    ? "border-l-4 border-[#C8102E] bg-[#0B2C52]/5 dark:bg-[#123B6B]/20"
+                    : "hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
                 }`}
               >
                 <div className="flex justify-between">
-                  <span className="font-mono text-[10px] text-zinc-400">
+                  <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                     {ticket.protocol}
                   </span>
                   <span
-                    className={`text-[9px] font-black ${
+                    className={`text-[9px] font-semibold ${
                       ticket.priority === "URGENTE"
-                        ? "text-red-600"
-                        : "text-zinc-500"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-zinc-500 dark:text-zinc-400"
                     }`}
                   >
                     {ticket.priority}
                   </span>
                 </div>
-                <p className="mt-1 truncate text-xs font-bold">
+                <p className="mt-1 truncate text-xs font-semibold text-zinc-900 dark:text-zinc-50">
                   {ticket.subject}
                 </p>
-                <p className="mt-1 text-[10px] text-zinc-500">
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+                  <span className={`h-4 w-4 rounded-full ${getAvatarTint(ticket.requesterName)} text-white text-[7px] font-semibold flex items-center justify-center shrink-0`}>
+                    {getInitials(ticket.requesterName)}
+                  </span>
                   {ticket.requesterName} ·{" "}
                   {
                     companies.find((company) => company.id === ticket.companyId)
                       ?.tradeName
                   }
-                </p>
-                <p className="mt-2 text-[9px] font-bold text-[#0B2C52]">
+                </div>
+                <p className="mt-2 text-[9px] font-semibold text-[#0B2C52] dark:text-[#9DB8D9]">
                   {STATUS_LABELS[ticket.status]}
                 </p>
               </button>
             ))}
             {tickets.length === 0 && (
-              <p className="p-8 text-center text-xs text-zinc-400">
+              <p className="p-8 text-center text-xs text-zinc-400 dark:text-zinc-500">
                 Fila vazia.
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="flex flex-col overflow-hidden rounded-sm border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#091320]">
           {selected ? (
             <>
-              <div className="space-y-4 border-b p-5">
+              <div className="space-y-4 border-b border-zinc-200 dark:border-zinc-800 p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <span className="font-mono text-[10px] text-zinc-400">
+                    <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500">
                       {selected.protocol}
                     </span>
-                    <h3 className="mt-1 font-bold">{selected.subject}</h3>
-                    <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
+                    <h3 className="mt-1 font-semibold text-zinc-900 dark:text-zinc-50">{selected.subject}</h3>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className={`h-5 w-5 rounded-full ${getAvatarTint(selected.requesterName)} text-white text-[8px] font-semibold flex items-center justify-center shrink-0`}>
+                        {getInitials(selected.requesterName)}
+                      </span>
                       Solicitante: {selected.requesterName}
                       <span
                         className={`h-2 w-2 rounded-full ${
                           isUserOnline(selected.requesterId)
                             ? "animate-pulse bg-emerald-500"
-                            : "bg-zinc-300"
+                            : "bg-zinc-300 dark:bg-zinc-600"
                         }`}
                       />
                       <strong
                         className={
                           isUserOnline(selected.requesterId)
-                            ? "text-emerald-700"
-                            : "text-zinc-400"
+                            ? "text-emerald-700 dark:text-emerald-400"
+                            : "text-zinc-400 dark:text-zinc-500"
                         }
                       >
                         {isUserOnline(selected.requesterId)
                           ? "online"
                           : "offline"}
                       </strong>
-                    </p>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -293,13 +310,13 @@ export default function ServiceDeskView() {
                       setDeleteError("");
                       setTicketToDelete(selected);
                     }}
-                    className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100"
+                    className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-sm border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-500/20"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Excluir requerimento
                   </button>
                 </div>
 
-                <p className="whitespace-pre-wrap rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-xs">
+                <p className="whitespace-pre-wrap rounded-sm border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 p-3 text-xs text-zinc-700 dark:text-zinc-300">
                   {selected.description}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -310,7 +327,7 @@ export default function ServiceDeskView() {
                         status: event.target.value as SupportTicketStatus,
                       })
                     }
-                    className="rounded-lg border p-2 text-xs"
+                    className="rounded-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 p-2 text-xs dark:[color-scheme:dark]"
                   >
                     {Object.entries(STATUS_LABELS).map(([key, label]) => (
                       <option key={key} value={key}>
@@ -325,7 +342,7 @@ export default function ServiceDeskView() {
                         priority: event.target.value as SupportTicketPriority,
                       })
                     }
-                    className="rounded-lg border p-2 text-xs"
+                    className="rounded-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 p-2 text-xs dark:[color-scheme:dark]"
                   >
                     <option value="BAIXA">Prioridade baixa</option>
                     <option value="NORMAL">Prioridade normal</option>
@@ -339,7 +356,7 @@ export default function ServiceDeskView() {
                         assignedToId: event.target.value,
                       })
                     }
-                    className="rounded-lg border p-2 text-xs"
+                    className="rounded-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 p-2 text-xs dark:[color-scheme:dark]"
                   >
                     <option value="">Sem responsável</option>
                     {bpoUsers.map((user) => (
@@ -351,9 +368,9 @@ export default function ServiceDeskView() {
                 </div>
               </div>
 
-              <div className="max-h-[340px] flex-1 space-y-3 overflow-y-auto bg-zinc-50 p-5">
+              <div className="max-h-[340px] flex-1 space-y-3 overflow-y-auto bg-zinc-50 dark:bg-[#091320]/40 p-5">
                 {selected.messages.length === 0 && (
-                  <div className="py-8 text-center text-xs text-zinc-400">
+                  <div className="py-8 text-center text-xs text-zinc-400 dark:text-zinc-500">
                     <MessageSquare className="mx-auto mb-2 h-7 w-7" />
                     Envie a primeira resposta ao solicitante.
                   </div>
@@ -368,13 +385,13 @@ export default function ServiceDeskView() {
                       className={`flex ${fromBpo ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-xl px-3 py-2 ${
+                        className={`max-w-[80%] rounded-sm px-3 py-2 ${
                           fromBpo
                             ? "bg-[#0B2C52] text-white"
-                            : "border bg-white"
+                            : "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100"
                         }`}
                       >
-                        <p className="text-[10px] font-bold opacity-70">
+                        <p className="text-[10px] font-semibold opacity-70">
                           {item.authorName}
                         </p>
                         {item.content && (
@@ -387,10 +404,10 @@ export default function ServiceDeskView() {
                             key={file.id}
                             href={file.url}
                             download={file.name}
-                            className={`mt-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[10px] font-bold ${
+                            className={`mt-2 flex items-center gap-2 rounded-sm px-2.5 py-2 text-[10px] font-semibold ${
                               fromBpo
                                 ? "bg-white/10 hover:bg-white/20"
-                                : "border bg-zinc-50 hover:bg-zinc-100"
+                                : "border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/70 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             }`}
                           >
                             <FileText className="h-4 w-4" />
@@ -407,10 +424,10 @@ export default function ServiceDeskView() {
               </div>
 
               {!['RESOLVIDO', 'ENCERRADO'].includes(selected.status) && (
-                <form onSubmit={send} className="space-y-2 border-t p-4">
+                <form onSubmit={send} className="space-y-2 border-t border-zinc-200 dark:border-zinc-800 p-4">
                   {attachment && (
-                    <div className="flex justify-between rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px]">
-                      <span className="truncate font-bold">
+                    <div className="flex justify-between rounded-sm border border-blue-100 dark:border-blue-500/25 bg-blue-50 dark:bg-blue-500/10 px-3 py-2 text-[10px] text-zinc-700 dark:text-zinc-300">
+                      <span className="truncate font-semibold">
                         {attachment.name}
                       </span>
                       <button
@@ -422,11 +439,11 @@ export default function ServiceDeskView() {
                     </div>
                   )}
                   {sendError && (
-                    <p className="text-[10px] text-rose-600">{sendError}</p>
+                    <p className="text-[10px] text-rose-600 dark:text-rose-400">{sendError}</p>
                   )}
                   <div className="flex gap-2">
                     <label
-                      className="cursor-pointer rounded-lg border p-2.5"
+                      className="cursor-pointer rounded-sm border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 p-2.5"
                       title="Anexar arquivo"
                     >
                       <Paperclip className="h-4 w-4" />
@@ -442,11 +459,11 @@ export default function ServiceDeskView() {
                       value={message}
                       onChange={(event) => setMessage(event.target.value)}
                       placeholder="Responder ao solicitante..."
-                      className="flex-1 rounded-lg border px-3 text-xs"
+                      className="flex-1 rounded-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 px-3 text-xs"
                     />
                     <button
                       disabled={sending}
-                      className="cursor-pointer rounded-lg bg-[#C8102E] p-2.5 text-white disabled:opacity-50"
+                      className="cursor-pointer rounded-sm bg-[#C8102E] p-2.5 text-white disabled:opacity-50"
                     >
                       <Send className="h-4 w-4" />
                     </button>
@@ -455,7 +472,7 @@ export default function ServiceDeskView() {
               )}
             </>
           ) : (
-            <div className="flex flex-1 items-center justify-center text-xs text-zinc-400">
+            <div className="flex flex-1 items-center justify-center text-xs text-zinc-400 dark:text-zinc-500">
               Selecione um requerimento da fila.
             </div>
           )}
@@ -463,36 +480,36 @@ export default function ServiceDeskView() {
       </div>
 
       {ticketToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 dark:bg-black/70 p-4 backdrop-blur-xs">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-ticket-title"
-            className="w-full max-w-md rounded-xl border border-red-200 bg-white p-6 shadow-2xl"
+            className="w-full max-w-md rounded-sm border border-red-200 dark:border-red-500/25 bg-white dark:bg-[#091320] p-6 shadow-2xl"
           >
             <div className="flex items-start gap-3">
-              <div className="rounded-full bg-red-100 p-2 text-red-700">
+              <div className="rounded-full bg-red-100 dark:bg-red-500/15 p-2 text-red-700 dark:text-red-300">
                 <Trash2 className="h-5 w-5" />
               </div>
               <div>
                 <h3
                   id="delete-ticket-title"
-                  className="text-base font-black text-zinc-900"
+                  className="text-base font-semibold text-zinc-900 dark:text-zinc-50"
                 >
                   Excluir requerimento e chat?
                 </h3>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                <p className="mt-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                   O requerimento <strong>{ticketToDelete.protocol}</strong>, a
                   descrição e todas as mensagens do chat serão removidos
                   definitivamente.
                 </p>
-                <p className="mt-2 text-xs font-bold text-red-700">
+                <p className="mt-2 text-xs font-semibold text-red-700 dark:text-red-400">
                   Esta ação não pode ser desfeita sem restaurar um backup.
                 </p>
               </div>
             </div>
             {deleteError && (
-              <p className="mt-4 rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-700">
+              <p className="mt-4 rounded-sm bg-red-50 dark:bg-red-500/10 p-3 text-xs font-semibold text-red-700 dark:text-red-300">
                 {deleteError}
               </p>
             )}
@@ -503,14 +520,14 @@ export default function ServiceDeskView() {
                   setTicketToDelete(null);
                   setDeleteError("");
                 }}
-                className="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100"
+                className="cursor-pointer rounded-sm px-4 py-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleDelete}
-                className="cursor-pointer rounded-lg bg-red-700 px-4 py-2 text-xs font-bold text-white hover:bg-red-800"
+                className="cursor-pointer rounded-sm bg-red-700 px-4 py-2 text-xs font-semibold text-white hover:bg-red-800"
               >
                 Excluir requerimento e chat
               </button>

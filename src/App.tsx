@@ -63,7 +63,11 @@ import {
   MessageSquareText,
   Headphones,
   Store,
+  Sun,
+  Moon,
 } from "lucide-react";
+
+const APP_THEME_STORAGE_KEY = "idex_finance_theme";
 
 type ViewType =
   | "dashboard"
@@ -127,6 +131,17 @@ function BPOWorkspaceShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem("bpo_saas_sidebar_collapsed") === "true",
   );
+  // Light/dark appearance for the workspace content — the sidebar keeps its own fixed dark navy regardless.
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => localStorage.getItem(APP_THEME_STORAGE_KEY) === "dark",
+  );
+  const toggleTheme = () => {
+    setIsDarkMode((previous) => {
+      const next = !previous;
+      localStorage.setItem(APP_THEME_STORAGE_KEY, next ? "dark" : "light");
+      return next;
+    });
+  };
   // BPO Admin starts in the global multi-company view; per-company modules only surface once a company is entered.
   const [bpoInCompanyContext, setBpoInCompanyContext] = useState(false);
   const isBpoGlobalMode =
@@ -780,30 +795,38 @@ function BPOWorkspaceShell() {
       </aside>
 
       {/* Main Workspace Frame */}
-      <main className="flex-grow flex flex-col min-w-0">
+      <main className={`flex-grow flex flex-col min-w-0 ${isDarkMode ? "dark" : ""}`}>
         {/* Desktop Top Header Bar */}
-        <header className="hidden md:flex items-center justify-between px-8 py-4 bg-white border-b border-[#0B2C52]/10 shrink-0 sticky top-0 z-30 shadow-xs">
+        <header className="hidden md:flex items-center justify-between px-8 py-4 bg-white dark:bg-[#091320] border-b border-[#0B2C52]/10 dark:border-white/10 shrink-0 sticky top-0 z-30 shadow-xs transition-colors duration-150">
           <div className="flex items-center gap-2">
-            <span className="text-[#0B2C52] font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <span className="text-[#0B2C52] dark:text-[#9DB8D9] font-semibold text-xs uppercase tracking-wider flex items-center gap-1.5">
               <LayoutDashboard className="h-3.5 w-3.5 text-[#C8102E]" /> Idex
               Finance Workspace
             </span>
-            <span className="text-zinc-300">/</span>
-            <span className="text-[#0B2C52] font-bold text-xs flex items-center gap-1.5 bg-[#0B2C52]/5 border-l-2 border-[#C8102E] border-y border-r border-[#0B2C52]/15 px-3 py-1.5 rounded-lg shadow-2xs">
-              <Building2 className="h-3.5 w-3.5 text-[#0B2C52]/70" />{" "}
+            <span className="text-zinc-300 dark:text-zinc-700">/</span>
+            <span className="text-[#0B2C52] dark:text-zinc-100 font-semibold text-xs flex items-center gap-1.5 bg-[#0B2C52]/5 dark:bg-white/5 border-l-2 border-[#C8102E] border-y border-r border-[#0B2C52]/15 dark:border-white/10 px-3 py-1.5 rounded-sm shadow-2xs">
+              <Building2 className="h-3.5 w-3.5 text-[#0B2C52]/70 dark:text-zinc-400" />{" "}
               {activeCompany.tradeName} ({activeCompany.cnpj})
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              title={isDarkMode ? "Usar tema claro" : "Usar tema escuro"}
+              className="flex items-center justify-center h-8 w-8 text-[#0B2C52]/70 dark:text-zinc-400 hover:bg-[#0B2C52]/10 dark:hover:bg-white/10 hover:text-[#0B2C52] dark:hover:text-zinc-100 rounded-sm cursor-pointer transition-colors"
+            >
+              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+
             {/* Direct Alert Notification Button */}
             <button
               onClick={() => setNotificationsOpen(true)}
-              className="p-2 text-[#0B2C52]/70 hover:bg-[#0B2C52]/10 hover:text-[#0B2C52] rounded-lg relative cursor-pointer"
+              className="p-2 text-[#0B2C52]/70 dark:text-zinc-400 hover:bg-[#0B2C52]/10 dark:hover:bg-white/10 hover:text-[#0B2C52] dark:hover:text-zinc-100 rounded-sm relative cursor-pointer transition-colors"
             >
               <Bell className="h-4.5 w-4.5" />
               {unreadNotifications.length > 0 && (
-                <span className="absolute top-1 right-1 h-4 w-4 bg-[#C8102E] text-white rounded-full flex items-center justify-center text-[9px] font-black">
+                <span className="absolute top-1 right-1 h-4 w-4 bg-[#C8102E] text-white rounded-full flex items-center justify-center text-[9px] font-semibold">
                   {unreadNotifications.length}
                 </span>
               )}
@@ -812,10 +835,10 @@ function BPOWorkspaceShell() {
             {/* Profile status label */}
             <div className="flex items-center gap-2.5 font-sans">
               <div className="text-right">
-                <span className="text-xs font-bold text-zinc-900 block leading-tight">
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 block leading-tight">
                   {currentUser.name}
                 </span>
-                <span className="text-[10px] text-zinc-400 block font-semibold">
+                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block font-medium">
                   {currentUser.role.replace(/_/g, " ")}
                 </span>
               </div>
@@ -824,72 +847,72 @@ function BPOWorkspaceShell() {
         </header>
 
         {/* View Content Port */}
-        <div className="flex-grow p-4 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto animate-in fade-in duration-150">
+        <div className="flex-grow p-4 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto animate-in fade-in duration-150 bg-[#FAFAFA] dark:bg-[#091320] transition-colors duration-150">
           {renderActiveView()}
         </div>
       </main>
 
       {/* Side Slide-out Notification Drawer Panel */}
       {notificationsOpen && (
-        <div className="fixed inset-y-0 right-0 w-80 bg-white border-l border-zinc-200 shadow-2xl z-50 flex flex-col justify-between animate-in slide-in-from-right duration-200 font-sans text-xs">
+        <div className={`fixed inset-y-0 right-0 w-80 bg-white dark:bg-[#091320] border-l border-zinc-200 dark:border-zinc-800 shadow-2xl z-50 flex flex-col justify-between animate-in slide-in-from-right duration-200 font-sans text-xs ${isDarkMode ? "dark" : ""}`}>
           <div className="flex flex-col flex-grow">
             <div className="p-4 bg-[#0B2C52] text-white flex items-center justify-between border-b-2 border-[#C8102E]">
               <div className="flex items-center gap-1.5">
                 <Bell className="h-4 w-4 text-[#F2D3A0]" />
-                <h3 className="font-bold text-sm">Alertas e Notificações</h3>
+                <h3 className="font-semibold text-sm">Alertas e Notificações</h3>
               </div>
               <button
                 onClick={() => setNotificationsOpen(false)}
-                className="text-[#F2D3A0] hover:text-white font-bold cursor-pointer"
+                className="text-[#F2D3A0] hover:text-white font-semibold cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="divide-y divide-zinc-100 overflow-y-auto flex-grow max-h-[80vh]">
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800 overflow-y-auto flex-grow max-h-[80vh]">
               {visibleNotifications.map((notif) => (
                 <div
                   key={notif.id}
                   onClick={() => markNotificationRead(notif.id)}
-                  className={`p-4 hover:bg-zinc-50 transition-colors cursor-pointer relative border-l-4 ${
+                  className={`p-4 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors cursor-pointer relative border-l-4 ${
                     notif.isRead
-                      ? "border-zinc-200 opacity-60"
-                      : "border-[#C8102E] bg-[#F2D3A0]/10 font-semibold"
+                      ? "border-zinc-200 dark:border-zinc-800 opacity-60"
+                      : "border-[#C8102E] bg-[#F2D3A0]/10 dark:bg-[#F2D3A0]/5 font-semibold"
                   }`}
                 >
-                  <div className="flex justify-between items-start gap-1.5 mb-1 text-[10px] text-zinc-400">
+                  <div className="flex justify-between items-start gap-1.5 mb-1 text-[10px] text-zinc-400 dark:text-zinc-500">
                     <span className="font-mono">
                       {new Date(notif.createdAt).toLocaleTimeString("pt-BR")}
                     </span>
-                    <span className="uppercase font-bold tracking-wider">
+                    <span className="uppercase font-semibold tracking-wider">
                       {notif.type}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-zinc-800 mb-0.5">
+                  <h4 className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 mb-0.5">
                     {notif.title}
                   </h4>
-                  <p className="text-zinc-500 leading-normal text-[11px]">
+                  <p className="text-zinc-500 dark:text-zinc-400 leading-normal text-[11px]">
                     {notif.message}
                   </p>
                 </div>
               ))}
               {visibleNotifications.length === 0 && (
-                <div className="p-8 text-center text-zinc-400 italic">
+                <div className="p-8 text-center text-zinc-400 dark:text-zinc-500 italic">
                   Nenhum alerta recente.
                 </div>
               )}
             </div>
           </div>
 
-          <div className="p-4 bg-zinc-50 border-t border-zinc-200 flex items-center justify-between">
+          <div className="p-4 bg-zinc-50 dark:bg-white/5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
             <button
               onClick={clearNotifications}
-              className="text-[11px] text-zinc-900 font-bold hover:underline cursor-pointer"
+              className="text-[11px] text-zinc-900 dark:text-zinc-100 font-semibold hover:underline cursor-pointer"
             >
               Marcar todas como lidas
             </button>
             <span
-              className="text-[10px] text-amber-700 font-mono"
+              className="text-[10px] text-amber-700 dark:text-amber-400 font-mono"
               title="Os dados deste ambiente ainda ficam somente neste navegador."
             >
               Dados locais · sem sincronização

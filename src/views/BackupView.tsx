@@ -272,9 +272,9 @@ export default function BackupView() {
 
   if (currentUser.role !== "BPO_ADMIN") {
     return (
-      <div className="bg-white border border-zinc-200 rounded-xl p-8 text-center space-y-3">
-        <Lock className="h-8 w-8 mx-auto text-zinc-400" />
-        <p className="text-zinc-600 text-xs font-semibold">
+      <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm p-8 text-center space-y-3">
+        <Lock className="h-8 w-8 mx-auto text-zinc-400 dark:text-zinc-500" />
+        <p className="text-zinc-600 dark:text-zinc-300 text-xs font-semibold">
           Apenas o proprietário com perfil Administrador BPO pode acessar
           backups.
         </p>
@@ -465,24 +465,24 @@ export default function BackupView() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2">
-          <HardDriveDownload className="h-5 w-5 text-[#0B2C52]" />
-          <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
+          <HardDriveDownload className="h-5 w-5 text-[#0B2C52] dark:text-[#9DB8D9]" />
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">
             Backup de Dados
           </h2>
         </div>
-        <p className="text-zinc-500 text-xs mt-1">
+        <p className="text-zinc-500 dark:text-zinc-400 text-xs mt-1">
           Exporte e restaure dados operacionais, cadastros auxiliares e os
           arquivos originais enviados.
         </p>
       </div>
 
-      <div className="flex items-start gap-3 rounded-xl border border-[#0B2C52]/15 bg-[#0B2C52]/5 p-4">
-        <ShieldCheck className="h-5 w-5 text-[#0B2C52] shrink-0" />
+      <div className="flex items-start gap-3 rounded-sm border border-[#0B2C52]/15 dark:border-[#3E6DA6]/40 bg-[#0B2C52]/5 dark:bg-[#123B6B]/20 p-4">
+        <ShieldCheck className="h-5 w-5 text-[#0B2C52] dark:text-[#9DB8D9] shrink-0" />
         <div>
-          <p className="text-xs font-bold text-[#0B2C52]">
+          <p className="text-xs font-semibold text-[#0B2C52] dark:text-[#9DB8D9]">
             Área exclusiva do proprietário BPO
           </p>
-          <p className="text-[11px] text-zinc-600 mt-0.5">
+          <p className="text-[11px] text-zinc-600 dark:text-zinc-400 mt-0.5">
             O arquivo contém informações financeiras e anexos em Base64. Ele
             pode ficar grande e deve ser armazenado em local seguro.
           </p>
@@ -490,22 +490,22 @@ export default function BackupView() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+        <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded-sm p-3">
           <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
         </div>
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="bg-white rounded-xl border border-zinc-200 shadow-xs p-6 space-y-5">
+        <section className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
+            <div className="p-2.5 rounded-sm bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
               <Download className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-zinc-900">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Baixar backup completo
               </h3>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Inclui masterData e uma cópia verificável de cada anexo.
               </p>
             </div>
@@ -513,23 +513,23 @@ export default function BackupView() {
           <button
             onClick={() => void handleDownload()}
             disabled={isExporting || isRestoring}
-            className="w-full flex items-center justify-center gap-2 bg-[#0B2C52] hover:bg-[#0B2C52]/90 disabled:opacity-50 disabled:cursor-wait text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 bg-[#0B2C52] hover:bg-[#0B2C52]/90 disabled:opacity-50 disabled:cursor-wait text-white text-xs font-semibold px-4 py-2.5 rounded-sm cursor-pointer"
           >
             <HardDriveDownload className="h-4 w-4" />
             {isExporting ? progress || "Preparando backup..." : "Gerar e baixar backup"}
           </button>
         </section>
 
-        <section className="bg-white rounded-xl border border-zinc-200 shadow-xs p-6 space-y-5">
+        <section className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700">
+            <div className="p-2.5 rounded-sm bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
               <Upload className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-zinc-900">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                 Restaurar backup
               </h3>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                 Valida dados, anexos e integridade antes de substituir o estado atual.
               </p>
             </div>
@@ -546,36 +546,36 @@ export default function BackupView() {
           <button
             onClick={() => inputRef.current?.click()}
             disabled={isExporting || isRestoring}
-            className="w-full flex items-center justify-center gap-2 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50 text-zinc-800 text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 text-zinc-800 dark:text-zinc-200 text-xs font-semibold px-4 py-2.5 rounded-sm cursor-pointer"
           >
             <FileJson className="h-4 w-4" /> Selecionar arquivo de backup
           </button>
 
           {selectedBackup && (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 space-y-2 text-[11px]">
-              <div className="flex items-center gap-2 font-bold text-zinc-800">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Arquivo
+            <div className="rounded-sm border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 p-3 space-y-2 text-[11px]">
+              <div className="flex items-center gap-2 font-semibold text-zinc-800 dark:text-zinc-100">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Arquivo
                 validado
               </div>
-              <p className="text-zinc-600 truncate">{selectedFileName}</p>
-              <p className="text-zinc-500">
+              <p className="text-zinc-600 dark:text-zinc-300 truncate">{selectedFileName}</p>
+              <p className="text-zinc-500 dark:text-zinc-400">
                 Gerado em {new Date(selectedBackup.exportedAt).toLocaleString("pt-BR")}
               </p>
-              <p className="text-zinc-500">
+              <p className="text-zinc-500 dark:text-zinc-400">
                 {selectedBackup.files.length} arquivo(s) físico(s) — {" "}
                 {(embeddedSize / 1024 / 1024).toLocaleString("pt-BR", {
                   maximumFractionDigits: 2,
                 })}{" "}
                 MB
               </p>
-              <p className="text-zinc-500">
+              <p className="text-zinc-500 dark:text-zinc-400">
                 {(selectedBackup.data.masterData as unknown[]).length} cadastro(s)
                 auxiliar(es)
               </p>
               <button
                 onClick={() => void handleRestore()}
                 disabled={isRestoring || isExporting}
-                className="mt-2 w-full flex items-center justify-center gap-2 bg-[#C8102E] hover:bg-[#A90D25] disabled:opacity-50 disabled:cursor-wait text-white text-xs font-bold px-4 py-2.5 rounded-lg cursor-pointer"
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-[#C8102E] hover:bg-[#A90D25] disabled:opacity-50 disabled:cursor-wait text-white text-xs font-semibold px-4 py-2.5 rounded-sm cursor-pointer"
               >
                 <RefreshCw className="h-4 w-4" />
                 {isRestoring ? progress || "Restaurando..." : "Confirmar restauração"}
@@ -584,7 +584,7 @@ export default function BackupView() {
           )}
 
           {restored && (
-            <div className="flex items-center gap-2 text-xs text-emerald-700 font-bold">
+            <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 font-semibold">
               <CheckCircle2 className="h-4 w-4" /> Backup restaurado.
               Recarregando o sistema...
             </div>

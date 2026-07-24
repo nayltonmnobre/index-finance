@@ -17,7 +17,9 @@ import {
   Filter,
   ArrowUpDown,
   CalendarDays,
+  CalendarClock,
   FileText,
+  FileWarning,
   UserCheck2,
   DollarSign,
   LayoutGrid,
@@ -27,9 +29,94 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   History,
+  Wallet,
+  Receipt,
+  AlertTriangle,
+  ClipboardCheck,
 } from "lucide-react";
 
 type ViewMode = "card" | "list";
+
+const OPS_AVATAR_PALETTE = [
+  "bg-indigo-500",
+  "bg-emerald-500",
+  "bg-amber-500",
+  "bg-rose-500",
+  "bg-sky-500",
+  "bg-purple-500",
+  "bg-teal-500",
+];
+
+const getInitials = (name: string) =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+
+const getAvatarTint = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return OPS_AVATAR_PALETTE[Math.abs(hash) % OPS_AVATAR_PALETTE.length];
+};
+
+const OPS_SUMMARY_VISUALS = [
+  {
+    icon: DollarSign,
+    tint: "bg-[#0B2C52]/5 text-[#0B2C52] dark:bg-[#123B6B]/25 dark:text-[#9DB8D9]",
+  },
+  {
+    icon: AlertCircle,
+    tint: "bg-rose-50 text-rose-500 dark:bg-rose-500/15 dark:text-rose-300",
+  },
+  {
+    icon: Clock,
+    tint: "bg-amber-50 text-amber-500 dark:bg-amber-500/15 dark:text-amber-300",
+  },
+  {
+    icon: FileText,
+    tint: "bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  },
+] as const;
+
+const OPS_DRAWER_VISUALS = [
+  {
+    icon: Wallet,
+    tint: "bg-[#0B2C52]/5 text-[#0B2C52] dark:bg-[#123B6B]/25 dark:text-[#9DB8D9]",
+  },
+  {
+    icon: ArrowUpDown,
+    tint: "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300",
+  },
+  {
+    icon: Receipt,
+    tint: "bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-300",
+  },
+  {
+    icon: DollarSign,
+    tint: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  {
+    icon: CalendarClock,
+    tint: "bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  },
+  {
+    icon: AlertTriangle,
+    tint: "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300",
+  },
+  {
+    icon: ClipboardCheck,
+    tint: "bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300",
+  },
+  {
+    icon: FileWarning,
+    tint: "bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  },
+] as const;
 
 export default function OperationsCenter({
   onEnterCompany,
@@ -308,19 +395,19 @@ export default function OperationsCenter({
     switch (status) {
       case "Em dia":
       case "OK":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/25";
       case "Atenção":
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25";
       case "Atraso":
-        return "bg-rose-50 text-rose-700 border-rose-200";
+        return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/25";
       case "Sem movimentação":
-        return "bg-zinc-100 text-zinc-600 border-zinc-200";
+        return "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
       case "Implantação":
-        return "bg-sky-50 text-sky-700 border-sky-200";
+        return "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/25";
       case "Inativo":
-        return "bg-zinc-200 text-zinc-800 border-zinc-300";
+        return "bg-zinc-200 text-zinc-800 border-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
       default:
-        return "bg-zinc-50 text-zinc-600 border-zinc-200";
+        return "bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
     }
   };
 
@@ -341,38 +428,38 @@ export default function OperationsCenter({
   };
 
   return (
-    <div id="operations-center-root" className="space-y-6">
+    <div id="operations-center-root" className="space-y-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1
             id="ops-title"
-            className="text-2xl font-bold text-zinc-900 tracking-tight"
+            className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight"
           >
             Centro de Operações BPO
           </h1>
-          <p className="text-zinc-500 text-sm">
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">
             Visão geral consolidada de saúde operacional e financeira de todos
             os clientes.
           </p>
         </div>
-        <div className="bg-white text-zinc-600 px-3 py-2 rounded-xl border border-zinc-200 shadow-xs space-y-1.5">
-          <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-            <CalendarDays className="h-3.5 w-3.5 text-[#0B2C52]" /> Competência
-            analisada
+        <div className="bg-white dark:bg-[#091320] text-zinc-600 dark:text-zinc-300 px-3 py-2 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-1.5">
+          <label className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            <CalendarDays className="h-3.5 w-3.5 text-[#0B2C52] dark:text-[#9DB8D9]" />{" "}
+            Competência analisada
           </label>
           <div className="flex items-center gap-2">
             <input
               type="month"
               value={referenceMonth}
               onChange={(event) => changeReferenceMonth(event.target.value)}
-              className="text-xs font-bold text-zinc-800 bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0B2C52]"
+              className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 bg-zinc-50 dark:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-700 rounded-sm px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#0B2C52] dark:[color-scheme:dark]"
             />
             <span className="text-xs capitalize hidden sm:inline">
               {referenceLabel}
             </span>
           </div>
-          <p className="text-[9px] text-zinc-400 font-mono">
+          <p className="text-[9px] text-zinc-400 dark:text-zinc-500 font-mono">
             Posição consultada em {lastUpdated.toLocaleDateString("pt-BR")} às{" "}
             {lastUpdated.toLocaleTimeString("pt-BR", {
               hour: "2-digit",
@@ -383,90 +470,98 @@ export default function OperationsCenter({
       </div>
 
       {/* Aggregate Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         <div
           id="ops-card-balance"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex items-center justify-between"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex items-center justify-between"
         >
           <div className="space-y-1">
-            <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider">
               Saldo Consolidado Atual
             </span>
-            <div className="text-xl font-bold text-zinc-900">
+            <div className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
               R${" "}
               {summaryTotals.totalBalance.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2,
               })}
             </div>
           </div>
-          <div className="p-3 bg-zinc-50 rounded-lg text-zinc-600">
-            <DollarSign className="h-5 w-5" />
+          <div
+            className={`h-7 w-7 rounded-sm flex items-center justify-center shrink-0 ${OPS_SUMMARY_VISUALS[0].tint}`}
+          >
+            <DollarSign className="h-3.5 w-3.5" strokeWidth={2.25} />
           </div>
         </div>
 
         <div
           id="ops-card-overdue"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex items-center justify-between"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex items-center justify-between"
         >
           <div className="space-y-1">
-            <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider">
               Contas Vencidas
             </span>
-            <div className="text-xl font-bold text-rose-600">
+            <div className="text-xl font-semibold text-rose-600 dark:text-rose-400">
               R${" "}
               {summaryTotals.totalOverduePayables.toLocaleString("pt-BR", {
                 minimumFractionDigits: 2,
               })}
             </div>
           </div>
-          <div className="p-3 bg-rose-50 rounded-lg text-rose-500">
-            <AlertCircle className="h-5 w-5" />
+          <div
+            className={`h-7 w-7 rounded-sm flex items-center justify-center shrink-0 ${OPS_SUMMARY_VISUALS[1].tint}`}
+          >
+            <AlertCircle className="h-3.5 w-3.5" strokeWidth={2.25} />
           </div>
         </div>
 
         <div
           id="ops-card-approvals"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex items-center justify-between"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex items-center justify-between"
         >
           <div className="space-y-1">
-            <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider">
               Aprovações Pendentes
             </span>
-            <div className="text-xl font-bold text-amber-600">
+            <div className="text-xl font-semibold text-amber-600 dark:text-amber-400">
               {summaryTotals.totalPendingApprovals}
             </div>
           </div>
-          <div className="p-3 bg-amber-50 rounded-lg text-amber-500">
-            <Clock className="h-5 w-5" />
+          <div
+            className={`h-7 w-7 rounded-sm flex items-center justify-center shrink-0 ${OPS_SUMMARY_VISUALS[2].tint}`}
+          >
+            <Clock className="h-3.5 w-3.5" strokeWidth={2.25} />
           </div>
         </div>
 
         <div
           id="ops-card-docs"
-          className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs flex items-center justify-between"
+          className="bg-white dark:bg-[#091320] p-3 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs flex items-center justify-between"
         >
           <div className="space-y-1">
-            <span className="text-zinc-500 text-xs font-medium uppercase tracking-wider">
+            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider">
               Documentos Pendentes
             </span>
-            <div className="text-xl font-bold text-zinc-700">
+            <div className="text-xl font-semibold text-zinc-700 dark:text-zinc-200">
               {summaryTotals.totalPendingDocs}
             </div>
           </div>
-          <div className="p-3 bg-zinc-50 rounded-lg text-zinc-500">
-            <FileText className="h-5 w-5" />
+          <div
+            className={`h-7 w-7 rounded-sm flex items-center justify-center shrink-0 ${OPS_SUMMARY_VISUALS[3].tint}`}
+          >
+            <FileText className="h-3.5 w-3.5" strokeWidth={2.25} />
           </div>
         </div>
       </div>
 
       {/* Filtering and Search Dashboard */}
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-xs p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
           <input
             type="text"
             placeholder="Buscar por Empresa, CNPJ ou Segmento..."
-            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 hover:bg-zinc-100/50 focus:bg-white rounded-lg border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-zinc-900 transition-colors"
+            className="w-full pl-9 pr-4 py-2 text-sm bg-zinc-50 dark:bg-zinc-800/70 hover:bg-zinc-100/50 dark:hover:bg-zinc-800 focus:bg-white dark:focus:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 rounded-sm border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-[#0B2C52] transition-colors"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -474,10 +569,10 @@ export default function OperationsCenter({
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Status Filter */}
-          <div className="flex items-center gap-1.5 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600">
+          <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-800/70 px-3 py-1.5 rounded-sm border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300">
             <Filter className="h-3.5 w-3.5" />
             <select
-              className="bg-transparent font-medium focus:outline-none cursor-pointer"
+              className="bg-transparent font-medium focus:outline-none cursor-pointer dark:[color-scheme:dark]"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -491,10 +586,10 @@ export default function OperationsCenter({
           </div>
 
           {/* Segment Filter */}
-          <div className="flex items-center gap-1.5 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600">
+          <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-800/70 px-3 py-1.5 rounded-sm border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300">
             <Building2 className="h-3.5 w-3.5" />
             <select
-              className="bg-transparent font-medium focus:outline-none cursor-pointer"
+              className="bg-transparent font-medium focus:outline-none cursor-pointer dark:[color-scheme:dark]"
               value={segmentFilter}
               onChange={(e) => setSegmentFilter(e.target.value)}
             >
@@ -508,10 +603,10 @@ export default function OperationsCenter({
           </div>
 
           {/* Sorter */}
-          <div className="flex items-center gap-1.5 bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs text-zinc-600">
+          <div className="flex items-center gap-1.5 bg-zinc-50 dark:bg-zinc-800/70 px-3 py-1.5 rounded-sm border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-600 dark:text-zinc-300">
             <ArrowUpDown className="h-3.5 w-3.5" />
             <select
-              className="bg-transparent font-medium focus:outline-none cursor-pointer"
+              className="bg-transparent font-medium focus:outline-none cursor-pointer dark:[color-scheme:dark]"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
             >
@@ -523,15 +618,15 @@ export default function OperationsCenter({
           </div>
 
           {/* View Mode Toggle */}
-          <div className="flex items-center gap-0.5 bg-zinc-50 p-1 rounded-lg border border-zinc-200">
+          <div className="flex items-center gap-0.5 bg-zinc-50 dark:bg-zinc-800/70 p-1 rounded-sm border border-zinc-200 dark:border-zinc-700">
             <button
               type="button"
               onClick={() => changeViewMode("card")}
               title="Visualização em cards"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-semibold transition-colors cursor-pointer ${
                 viewMode === "card"
-                  ? "bg-white text-[#0B2C52] shadow-2xs border border-zinc-200"
-                  : "text-zinc-500 hover:text-zinc-700"
+                  ? "bg-white dark:bg-zinc-700 text-[#0B2C52] dark:text-[#9DB8D9] shadow-2xs border border-zinc-200 dark:border-zinc-600"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
@@ -541,10 +636,10 @@ export default function OperationsCenter({
               type="button"
               onClick={() => changeViewMode("list")}
               title="Visualização em lista"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-semibold transition-colors cursor-pointer ${
                 viewMode === "list"
-                  ? "bg-white text-[#0B2C52] shadow-2xs border border-zinc-200"
-                  : "text-zinc-500 hover:text-zinc-700"
+                  ? "bg-white dark:bg-zinc-700 text-[#0B2C52] dark:text-[#9DB8D9] shadow-2xs border border-zinc-200 dark:border-zinc-600"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               }`}
             >
               <List className="h-3.5 w-3.5" />
@@ -556,9 +651,9 @@ export default function OperationsCenter({
 
       {/* Companies — empty state */}
       {filteredCompanies.length === 0 && (
-        <div className="bg-zinc-50 border border-zinc-200 border-dashed py-12 rounded-xl text-center space-y-3">
-          <Building2 className="h-10 w-10 text-zinc-300 mx-auto" />
-          <p className="text-zinc-500 text-sm font-medium">
+        <div className="bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700 border-dashed py-12 rounded-sm text-center space-y-3">
+          <Building2 className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto" />
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">
             Nenhuma empresa encontrada com os filtros selecionados.
           </p>
         </div>
@@ -566,11 +661,11 @@ export default function OperationsCenter({
 
       {/* Companies List View */}
       {filteredCompanies.length > 0 && viewMode === "list" && (
-        <div className="bg-white border border-zinc-200 rounded-xl shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-200 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                <tr className="bg-zinc-50 dark:bg-[#091320]/60 border-b border-zinc-200 dark:border-zinc-800 text-left text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   <th className="px-5 py-3">Cliente / Empresa</th>
                   <th className="px-4 py-3">Status Geral</th>
                   <th className="px-4 py-3 text-center">Contas a Pagar</th>
@@ -586,7 +681,7 @@ export default function OperationsCenter({
                   <th className="px-4 py-3 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {filteredCompanies.map((company) => {
                   const stats = getCompanyStats(company.id);
                   const isNextDueOverdue =
@@ -596,34 +691,39 @@ export default function OperationsCenter({
                     <tr
                       key={company.id}
                       id={`company-row-${company.id}`}
-                      className="hover:bg-zinc-50/70 transition-colors"
+                      className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors"
                     >
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-zinc-900">
+                          <span
+                            className={`h-6 w-6 rounded-full ${getAvatarTint(company.tradeName)} text-white text-[9px] font-semibold flex items-center justify-center shrink-0`}
+                          >
+                            {getInitials(company.tradeName)}
+                          </span>
+                          <span className="font-semibold text-zinc-900 dark:text-zinc-50">
                             {company.tradeName}
                           </span>
-                          <span className="text-[10px] bg-zinc-50 text-zinc-500 border border-zinc-200 px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-[10px] bg-zinc-50 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 rounded font-medium">
                             {company.segment}
                           </span>
                         </div>
-                        <span className="text-xs font-mono text-zinc-400">
+                        <span className="text-xs font-mono text-zinc-400 dark:text-zinc-500">
                           {company.cnpj}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
                         <span
-                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap ${getStatusColor(company.status)}`}
+                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded border whitespace-nowrap ${getStatusColor(company.status)}`}
                         >
                           {company.status}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span
-                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded text-[11px] font-semibold ${
                             stats.openPayablesCount > 0
-                              ? "bg-zinc-100 text-zinc-700 border border-zinc-200"
-                              : "text-zinc-400"
+                              ? "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                              : "text-zinc-400 dark:text-zinc-500"
                           }`}
                         >
                           {stats.openPayablesCount}
@@ -631,10 +731,10 @@ export default function OperationsCenter({
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span
-                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded text-[11px] font-semibold ${
                             stats.openReceivablesCount > 0
-                              ? "bg-zinc-100 text-zinc-700 border border-zinc-200"
-                              : "text-zinc-400"
+                              ? "bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                              : "text-zinc-400 dark:text-zinc-500"
                           }`}
                         >
                           {stats.openReceivablesCount}
@@ -644,28 +744,28 @@ export default function OperationsCenter({
                         {stats.nextDuePayable ? (
                           <>
                             <div
-                              className={`font-semibold ${isNextDueOverdue ? "text-rose-600" : "text-zinc-800"}`}
+                              className={`font-semibold ${isNextDueOverdue ? "text-rose-600 dark:text-rose-400" : "text-zinc-800 dark:text-zinc-100"}`}
                             >
                               {new Date(
                                 stats.nextDuePayable.dueDate,
                               ).toLocaleDateString("pt-BR")}
                             </div>
-                            <div className="text-[10px] text-zinc-400 truncate max-w-40">
+                            <div className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate max-w-40">
                               {stats.nextDuePayable.supplier}
                             </div>
                           </>
                         ) : (
-                          <span className="text-xs text-zinc-400 italic">
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">
                             Em dia
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span
-                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded text-[11px] font-semibold ${
                             stats.pendingApprovalsCount > 0
-                              ? "bg-amber-50 text-amber-700 border border-amber-200"
-                              : "text-zinc-400"
+                              ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25"
+                              : "text-zinc-400 dark:text-zinc-500"
                           }`}
                         >
                           {stats.pendingApprovalsCount}
@@ -673,10 +773,10 @@ export default function OperationsCenter({
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         <span
-                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded text-[11px] font-semibold ${
                             stats.pendingDocsCount > 0
-                              ? "bg-zinc-100 text-zinc-600 border border-zinc-200"
-                              : "text-zinc-400"
+                              ? "bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                              : "text-zinc-400 dark:text-zinc-500"
                           }`}
                         >
                           {stats.pendingDocsCount}
@@ -685,16 +785,16 @@ export default function OperationsCenter({
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         {stats.lastMovement ? (
                           <>
-                            <div className="text-xs font-semibold text-zinc-700">
+                            <div className="text-xs font-semibold text-zinc-700 dark:text-zinc-200">
                               {formatRelativeTime(stats.lastMovement.timestamp)}
                             </div>
-                            <div className="text-[10px] text-zinc-400 truncate max-w-40">
+                            <div className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate max-w-40">
                               {stats.lastMovement.action.replace(/_/g, " ")} ·{" "}
                               {stats.lastMovement.userName.split(" ")[0]}
                             </div>
                           </>
                         ) : (
-                          <span className="text-xs text-zinc-400 italic">
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500 italic">
                             Sem registros
                           </span>
                         )}
@@ -704,14 +804,14 @@ export default function OperationsCenter({
                           <button
                             onClick={() => setPreviewCompanyId(company.id)}
                             title="Visualizar resumo"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-600 bg-white border border-zinc-200 hover:border-[#0B2C52]/40 hover:text-[#0B2C52] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-700 hover:border-[#0B2C52]/40 dark:hover:border-[#3E6DA6]/40 hover:text-[#0B2C52] dark:hover:text-[#9DB8D9] px-2.5 py-1.5 rounded-sm transition-colors cursor-pointer whitespace-nowrap"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             <span className="hidden xl:inline">Visualizar</span>
                           </button>
                           <button
                             onClick={() => handleEnterCompany(company.id)}
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0B2C52] hover:bg-[#C8102E] px-3 py-1.5 rounded-lg transition-colors cursor-pointer group shadow-2xs whitespace-nowrap"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-[#0B2C52] hover:bg-[#C8102E] px-3 py-1.5 rounded-sm transition-colors cursor-pointer group shadow-2xs whitespace-nowrap"
                           >
                             Entrar
                             <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -729,54 +829,61 @@ export default function OperationsCenter({
 
       {/* Companies Card Grid View */}
       {filteredCompanies.length > 0 && viewMode === "card" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {filteredCompanies.map((company) => {
             const stats = getCompanyStats(company.id);
             return (
               <div
                 key={company.id}
                 id={`company-card-${company.id}`}
-                className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                className="bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 rounded-sm overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
               >
                 {/* Company Header */}
-                <div className="p-5 border-b border-zinc-100 space-y-3">
+                <div className="p-5 border-b border-zinc-100 dark:border-zinc-800 space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-xs font-mono text-zinc-400">
-                        {company.cnpj}
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span
+                        className={`h-7 w-7 rounded-full ${getAvatarTint(company.tradeName)} text-white text-[10px] font-semibold flex items-center justify-center shrink-0 mt-0.5`}
+                      >
+                        {getInitials(company.tradeName)}
                       </span>
-                      <h3 className="text-base font-bold text-zinc-900 line-clamp-1">
-                        {company.tradeName}
-                      </h3>
-                      <p className="text-xs text-zinc-500 line-clamp-1">
-                        {company.corporateName}
-                      </p>
+                      <div className="min-w-0">
+                        <span className="text-xs font-mono text-zinc-400 dark:text-zinc-500">
+                          {company.cnpj}
+                        </span>
+                        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50 line-clamp-1">
+                          {company.tradeName}
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
+                          {company.corporateName}
+                        </p>
+                      </div>
                     </div>
                     <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${getStatusColor(company.status)}`}
+                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded border shrink-0 ${getStatusColor(company.status)}`}
                     >
                       {company.status}
                     </span>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5">
-                    <span className="text-[10px] bg-zinc-50 text-zinc-500 border border-zinc-200 px-2 py-0.5 rounded font-medium">
+                    <span className="text-[10px] bg-zinc-50 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded font-medium">
                       {company.segment}
                     </span>
-                    <span className="text-[10px] bg-zinc-50 text-zinc-500 border border-zinc-200 px-2 py-0.5 rounded font-medium">
+                    <span className="text-[10px] bg-zinc-50 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded font-medium">
                       {company.taxRegime}
                     </span>
                   </div>
                 </div>
 
                 {/* Company Health Dashboard Metrics */}
-                <div className="p-5 space-y-4 grow bg-zinc-50/50">
+                <div className="p-5 space-y-4 grow bg-zinc-50/50 dark:bg-zinc-900/20">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <span className="text-zinc-400 text-[10px] font-medium uppercase tracking-wider block">
+                      <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium uppercase tracking-wider block">
                         Saldo em Conta
                       </span>
-                      <span className="text-sm font-bold text-zinc-800">
+                      <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
                         R${" "}
                         {stats.balance.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
@@ -785,11 +892,11 @@ export default function OperationsCenter({
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-zinc-400 text-[10px] font-medium uppercase tracking-wider block">
+                      <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium uppercase tracking-wider block">
                         Fluxo de Caixa
                       </span>
                       <span
-                        className={`text-sm font-bold flex items-center gap-1 ${stats.netCashFlow >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+                        className={`text-sm font-semibold flex items-center gap-1 ${stats.netCashFlow >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
                       >
                         {stats.netCashFlow >= 0 ? (
                           <ArrowUpRight className="h-3.5 w-3.5" />
@@ -804,10 +911,10 @@ export default function OperationsCenter({
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-zinc-400 text-[10px] font-medium uppercase tracking-wider block">
+                      <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium uppercase tracking-wider block">
                         Contas a Pagar
                       </span>
-                      <span className="text-sm font-bold text-zinc-800">
+                      <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
                         R${" "}
                         {stats.pendingPayables.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
@@ -816,10 +923,10 @@ export default function OperationsCenter({
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-zinc-400 text-[10px] font-medium uppercase tracking-wider block">
+                      <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium uppercase tracking-wider block">
                         Contas a Receber
                       </span>
-                      <span className="text-sm font-bold text-zinc-800">
+                      <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
                         R${" "}
                         {stats.pendingReceivables.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
@@ -828,30 +935,30 @@ export default function OperationsCenter({
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-zinc-400 text-[10px] font-medium uppercase tracking-wider block">
+                      <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium uppercase tracking-wider block">
                         Próximo Vencimento
                       </span>
                       {stats.nextDuePayable ? (
                         <span
-                          className={`text-sm font-bold ${new Date(stats.nextDuePayable.dueDate) < new Date() ? "text-rose-600" : "text-zinc-800"}`}
+                          className={`text-sm font-semibold ${new Date(stats.nextDuePayable.dueDate) < new Date() ? "text-rose-600 dark:text-rose-400" : "text-zinc-800 dark:text-zinc-100"}`}
                         >
                           {new Date(
                             stats.nextDuePayable.dueDate,
                           ).toLocaleDateString("pt-BR")}
                         </span>
                       ) : (
-                        <span className="text-sm font-bold text-zinc-400">
+                        <span className="text-sm font-semibold text-zinc-400 dark:text-zinc-500">
                           Em dia
                         </span>
                       )}
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-zinc-400 text-[10px] font-medium uppercase tracking-wider block">
+                      <span className="text-zinc-400 dark:text-zinc-500 text-[10px] font-medium uppercase tracking-wider block">
                         Contas Vencidas
                       </span>
                       <span
-                        className={`text-sm font-bold ${stats.overduePayables > 0 ? "text-rose-600" : "text-zinc-500"}`}
+                        className={`text-sm font-semibold ${stats.overduePayables > 0 ? "text-rose-600 dark:text-rose-400" : "text-zinc-500 dark:text-zinc-400"}`}
                       >
                         R${" "}
                         {stats.overduePayables.toLocaleString("pt-BR", {
@@ -861,23 +968,23 @@ export default function OperationsCenter({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100">
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-amber-500" />
-                      <span className="text-xs text-zinc-600 font-medium">
+                      <span className="text-xs text-zinc-600 dark:text-zinc-300 font-medium">
                         {stats.pendingApprovalsCount} Aprovações
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-zinc-400" />
-                      <span className="text-xs text-zinc-600 font-medium">
+                      <span className="text-xs text-zinc-600 dark:text-zinc-300 font-medium">
                         {stats.pendingDocsCount} Docs Pendentes
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 pt-2 border-t border-zinc-100">
+                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-zinc-500 pt-2 border-t border-zinc-100 dark:border-zinc-800">
                     <History className="h-3 w-3 shrink-0" />
                     {stats.lastMovement ? (
                       <span className="truncate">
@@ -892,9 +999,9 @@ export default function OperationsCenter({
                 </div>
 
                 {/* Company Footer Action */}
-                <div className="p-4 bg-white border-t border-zinc-100 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-zinc-500 min-w-0">
-                    <UserCheck2 className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                <div className="p-4 bg-white dark:bg-[#091320] border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 min-w-0">
+                    <UserCheck2 className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
                     <span
                       className="truncate max-w-32"
                       title={`BPO Resp: ${stats.bpoResponsibleName}`}
@@ -907,13 +1014,13 @@ export default function OperationsCenter({
                     <button
                       onClick={() => setPreviewCompanyId(company.id)}
                       title="Visualizar resumo"
-                      className="flex items-center gap-1.5 text-xs font-bold text-zinc-600 bg-white border border-zinc-200 hover:border-[#0B2C52]/40 hover:text-[#0B2C52] px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-700 hover:border-[#0B2C52]/40 dark:hover:border-[#3E6DA6]/40 hover:text-[#0B2C52] dark:hover:text-[#9DB8D9] px-3 py-2 rounded-sm transition-colors cursor-pointer"
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => handleEnterCompany(company.id)}
-                      className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#0B2C52] hover:bg-[#C8102E] px-3.5 py-2 rounded-lg transition-colors cursor-pointer group shadow-2xs"
+                      className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#0B2C52] hover:bg-[#C8102E] px-3.5 py-2 rounded-sm transition-colors cursor-pointer group shadow-2xs"
                     >
                       Entrar
                       <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -933,20 +1040,20 @@ export default function OperationsCenter({
           return (
             <div className="fixed inset-0 z-50 flex justify-end">
               <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+                className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
                 onClick={() => setPreviewCompanyId(null)}
               />
-              <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 font-sans text-xs">
+              <div className="relative w-full max-w-md bg-white dark:bg-[#091320] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-200 font-sans text-xs">
                 <div className="p-5 bg-[#0B2C52] text-white flex items-start justify-between border-b-2 border-[#C8102E]">
                   <div className="space-y-1">
                     <span className="text-[10px] font-mono text-[#F2D3A0]/70">
                       {previewCompany.cnpj}
                     </span>
-                    <h3 className="font-bold text-base">
+                    <h3 className="font-semibold text-base">
                       {previewCompany.tradeName}
                     </h3>
                     <span
-                      className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${getStatusColor(previewCompany.status)}`}
+                      className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded border ${getStatusColor(previewCompany.status)}`}
                     >
                       {previewCompany.status}
                     </span>
@@ -961,24 +1068,34 @@ export default function OperationsCenter({
 
                 <div className="grow overflow-y-auto p-5 space-y-5">
                   {/* Key figures */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[0].tint}`}
+                      >
+                        <Wallet className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                         Saldo em Conta
                       </span>
-                      <span className="text-sm font-bold text-zinc-900">
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                         R${" "}
                         {previewStats.balance.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </span>
                     </div>
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[1].tint}`}
+                      >
+                        <ArrowUpDown className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                         Fluxo de Caixa
                       </span>
                       <span
-                        className={`text-sm font-bold ${previewStats.netCashFlow >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+                        className={`text-sm font-semibold ${previewStats.netCashFlow >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
                       >
                         {previewStats.netCashFlow >= 0 ? "+" : "-"} R${" "}
                         {Math.abs(previewStats.netCashFlow).toLocaleString(
@@ -986,15 +1103,15 @@ export default function OperationsCenter({
                           { minimumFractionDigits: 2 },
                         )}
                       </span>
-                      <div className="text-[9px] text-zinc-400 flex items-center gap-2">
-                        <span className="flex items-center text-emerald-600">
+                      <div className="text-[9px] text-zinc-400 dark:text-zinc-500 flex items-center gap-2">
+                        <span className="flex items-center text-emerald-600 dark:text-emerald-400">
                           <ArrowUpRight className="h-3 w-3" />
                           R${" "}
                           {previewStats.cashIn.toLocaleString("pt-BR", {
                             maximumFractionDigits: 0,
                           })}
                         </span>
-                        <span className="flex items-center text-rose-500">
+                        <span className="flex items-center text-rose-500 dark:text-rose-400">
                           <ArrowDownRight className="h-3 w-3" />
                           R${" "}
                           {previewStats.cashOut.toLocaleString("pt-BR", {
@@ -1003,64 +1120,84 @@ export default function OperationsCenter({
                         </span>
                       </div>
                     </div>
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[2].tint}`}
+                      >
+                        <Receipt className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                         Contas a Pagar
                       </span>
-                      <span className="text-sm font-bold text-zinc-900">
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                         R${" "}
                         {previewStats.pendingPayables.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </span>
-                      <span className="text-[9px] text-zinc-400">
+                      <span className="text-[9px] text-zinc-400 dark:text-zinc-500 block">
                         {previewStats.openPayablesCount} em aberto
                       </span>
                     </div>
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[3].tint}`}
+                      >
+                        <DollarSign className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                         Contas a Receber
                       </span>
-                      <span className="text-sm font-bold text-zinc-900">
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
                         R${" "}
                         {previewStats.pendingReceivables.toLocaleString(
                           "pt-BR",
                           { minimumFractionDigits: 2 },
                         )}
                       </span>
-                      <span className="text-[9px] text-zinc-400">
+                      <span className="text-[9px] text-zinc-400 dark:text-zinc-500 block">
                         {previewStats.openReceivablesCount} em aberto
                       </span>
                     </div>
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[4].tint}`}
+                      >
+                        <CalendarClock className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                         Próximo Vencimento
                       </span>
                       {previewStats.nextDuePayable ? (
                         <>
                           <span
-                            className={`text-sm font-bold block ${new Date(previewStats.nextDuePayable.dueDate) < new Date() ? "text-rose-600" : "text-zinc-900"}`}
+                            className={`text-sm font-semibold block ${new Date(previewStats.nextDuePayable.dueDate) < new Date() ? "text-rose-600 dark:text-rose-400" : "text-zinc-900 dark:text-zinc-50"}`}
                           >
                             {new Date(
                               previewStats.nextDuePayable.dueDate,
                             ).toLocaleDateString("pt-BR")}
                           </span>
-                          <span className="text-[9px] text-zinc-400 truncate block">
+                          <span className="text-[9px] text-zinc-400 dark:text-zinc-500 truncate block">
                             {previewStats.nextDuePayable.supplier}
                           </span>
                         </>
                       ) : (
-                        <span className="text-sm font-bold text-zinc-400">
+                        <span className="text-sm font-semibold text-zinc-400 dark:text-zinc-500">
                           Em dia
                         </span>
                       )}
                     </div>
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[5].tint}`}
+                      >
+                        <AlertTriangle className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider block">
                         Contas Vencidas
                       </span>
                       <span
-                        className={`text-sm font-bold ${previewStats.overduePayables > 0 ? "text-rose-600" : "text-zinc-500"}`}
+                        className={`text-sm font-semibold ${previewStats.overduePayables > 0 ? "text-rose-600 dark:text-rose-400" : "text-zinc-500 dark:text-zinc-400"}`}
                       >
                         R${" "}
                         {previewStats.overduePayables.toLocaleString("pt-BR", {
@@ -1068,19 +1205,29 @@ export default function OperationsCenter({
                         })}
                       </span>
                     </div>
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-amber-700 font-semibold uppercase tracking-wider block">
+                    <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[6].tint}`}
+                      >
+                        <ClipboardCheck className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold uppercase tracking-wider block">
                         Aprovações Pendentes
                       </span>
-                      <span className="text-sm font-bold text-amber-700">
+                      <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
                         {previewStats.pendingApprovalsCount}
                       </span>
                     </div>
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1">
-                      <span className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider block">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 rounded-sm p-2.5 space-y-1">
+                      <div
+                        className={`h-6 w-6 rounded-sm flex items-center justify-center mb-0.5 ${OPS_DRAWER_VISUALS[7].tint}`}
+                      >
+                        <FileWarning className="h-3 w-3" strokeWidth={2.25} />
+                      </div>
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider block">
                         Documentos Pendentes
                       </span>
-                      <span className="text-sm font-bold text-zinc-700">
+                      <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
                         {previewStats.pendingDocsCount}
                       </span>
                     </div>
@@ -1088,7 +1235,7 @@ export default function OperationsCenter({
 
                   {/* Upcoming due dates */}
                   <div className="space-y-2">
-                    <h4 className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">
+                    <h4 className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                       Próximos Vencimentos
                     </h4>
                     {previewStats.upcomingPayables.length > 0 ? (
@@ -1098,25 +1245,25 @@ export default function OperationsCenter({
                           return (
                             <div
                               key={ap.id}
-                              className="flex items-center justify-between bg-zinc-50 border border-zinc-200/60 rounded-lg p-2.5"
+                              className="flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800 rounded-sm p-2.5"
                             >
                               <div className="space-y-0.5 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <span
                                     className={`h-1.5 w-1.5 rounded-full shrink-0 ${isOverdue ? "bg-rose-500" : "bg-amber-500"}`}
                                   />
-                                  <span className="font-bold text-zinc-800 truncate">
+                                  <span className="font-semibold text-zinc-800 dark:text-zinc-100 truncate">
                                     {ap.description}
                                   </span>
                                 </div>
-                                <span className="text-[10px] text-zinc-400 block">
+                                <span className="text-[10px] text-zinc-400 dark:text-zinc-500 block">
                                   {ap.supplier} ·{" "}
                                   {new Date(ap.dueDate).toLocaleDateString(
                                     "pt-BR",
                                   )}
                                 </span>
                               </div>
-                              <span className="font-bold text-zinc-800 shrink-0">
+                              <span className="font-semibold text-zinc-800 dark:text-zinc-100 shrink-0">
                                 R${" "}
                                 {ap.finalAmount.toLocaleString("pt-BR", {
                                   minimumFractionDigits: 2,
@@ -1127,7 +1274,7 @@ export default function OperationsCenter({
                         })}
                       </div>
                     ) : (
-                      <p className="text-zinc-400 italic py-2">
+                      <p className="text-zinc-400 dark:text-zinc-500 italic py-2">
                         Nenhum vencimento em aberto.
                       </p>
                     )}
@@ -1135,55 +1282,57 @@ export default function OperationsCenter({
 
                   {/* Last movement */}
                   <div className="space-y-2">
-                    <h4 className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">
+                    <h4 className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                       Última Movimentação
                     </h4>
                     {previewStats.lastMovement ? (
-                      <div className="bg-zinc-50 border border-zinc-200/60 rounded-lg p-3 space-y-1">
+                      <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800 rounded-sm p-3 space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-zinc-800 uppercase bg-zinc-100 px-1.5 py-0.5 rounded font-mono text-[10px]">
+                          <span className="font-semibold text-zinc-800 dark:text-zinc-100 uppercase bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-[10px]">
                             {previewStats.lastMovement.action.replace(
                               /_/g,
                               " ",
                             )}
                           </span>
-                          <span className="text-[10px] text-zinc-400">
+                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
                             {formatRelativeTime(
                               previewStats.lastMovement.timestamp,
                             )}
                           </span>
                         </div>
-                        <p className="text-zinc-500">
+                        <p className="text-zinc-500 dark:text-zinc-400">
                           Por{" "}
-                          <strong>{previewStats.lastMovement.userName}</strong>{" "}
+                          <strong className="text-zinc-700 dark:text-zinc-200">
+                            {previewStats.lastMovement.userName}
+                          </strong>{" "}
                           ({previewStats.lastMovement.role.replace(/_/g, " ")})
                         </p>
                       </div>
                     ) : (
-                      <p className="text-zinc-400 italic py-2">
+                      <p className="text-zinc-400 dark:text-zinc-500 italic py-2">
                         Nenhuma atividade registrada ainda.
                       </p>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-zinc-500 pt-2 border-t border-zinc-100">
-                    <UserCheck2 className="h-3.5 w-3.5 text-zinc-400" />
+                  <div className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    <UserCheck2 className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
                     <span>
                       Responsável BPO:{" "}
-                      <strong className="text-zinc-700">
+                      <strong className="text-zinc-700 dark:text-zinc-200">
                         {previewStats.bpoResponsibleName}
                       </strong>
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4 bg-zinc-50 border-t border-zinc-200">
+                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/60 border-t border-zinc-200 dark:border-zinc-800">
                   <button
                     onClick={() => {
                       handleEnterCompany(previewCompany.id);
                       setPreviewCompanyId(null);
                     }}
-                    className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-[#0B2C52] hover:bg-[#C8102E] px-4 py-2.5 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                    className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-[#0B2C52] hover:bg-[#C8102E] px-4 py-2.5 rounded-sm transition-colors cursor-pointer shadow-2xs"
                   >
                     Entrar no Ambiente Completo
                     <ArrowRight className="h-3.5 w-3.5" />

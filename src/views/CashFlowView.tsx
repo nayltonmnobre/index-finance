@@ -20,6 +20,7 @@ import {
   Briefcase,
   Layers,
   ArrowRight,
+  Wallet,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -300,17 +301,17 @@ export default function CashFlowView() {
   };
 
   return (
-    <div id="cash-flow-root" className="space-y-6">
+    <div id="cash-flow-root" className="space-y-4">
       {/* View Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2
             id="cashflow-title"
-            className="text-xl font-bold text-zinc-900 tracking-tight"
+            className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight font-sans"
           >
             Fluxo de Caixa Operacional
           </h2>
-          <p className="text-zinc-500 text-xs">
+          <p className="text-zinc-500 dark:text-zinc-400 text-xs font-sans">
             Visão integrada das movimentações financeiras executadas e previsões
             futuras de caixa.
           </p>
@@ -318,17 +319,17 @@ export default function CashFlowView() {
 
         <div className="flex items-center gap-2">
           {/* View Toggle */}
-          <div className="flex bg-zinc-100 p-1 rounded-lg border border-zinc-200">
+          <div className="flex bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-sm border border-zinc-200 dark:border-zinc-700">
             <button
               onClick={() => setViewMode("chart")}
-              className={`p-1.5 rounded-md cursor-pointer transition-colors ${viewMode === "chart" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900"}`}
+              className={`p-1.5 rounded-sm cursor-pointer transition-colors ${viewMode === "chart" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-xs" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
               title="Visualização em Gráfico"
             >
               <BarChart3 className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode("table")}
-              className={`p-1.5 rounded-md cursor-pointer transition-colors ${viewMode === "table" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-500 hover:text-zinc-900"}`}
+              className={`p-1.5 rounded-sm cursor-pointer transition-colors ${viewMode === "table" ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-50 shadow-xs" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
               title="Tabela de Fluxos"
             >
               <TableProperties className="h-4 w-4" />
@@ -337,7 +338,7 @@ export default function CashFlowView() {
 
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 text-xs font-bold text-zinc-950 bg-white border border-zinc-200 hover:bg-zinc-50 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-zinc-950 dark:text-zinc-100 bg-white dark:bg-[#091320] border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 px-3 py-2 rounded-sm transition-colors cursor-pointer"
           >
             <Download className="h-4 w-4" />
             Exportar
@@ -346,16 +347,16 @@ export default function CashFlowView() {
       </div>
 
       {/* Multi-Filter Bar */}
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-xs p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+      <div className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
         {/* Account selection */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+          <label className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">
             Conta Bancária
           </label>
           <div className="relative">
-            <Building2 className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+            <Building2 className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
             <select
-              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 cursor-pointer dark:[color-scheme:dark]"
               value={selectedAccount}
               onChange={(e) => setSelectedAccount(e.target.value)}
             >
@@ -371,13 +372,13 @@ export default function CashFlowView() {
 
         {/* Category selection */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+          <label className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">
             Categoria
           </label>
           <div className="relative">
-            <Layers className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+            <Layers className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
             <select
-              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 cursor-pointer dark:[color-scheme:dark]"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
@@ -393,13 +394,13 @@ export default function CashFlowView() {
 
         {/* Cost center selection */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+          <label className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">
             Centro de Custo
           </label>
           <div className="relative">
-            <Briefcase className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+            <Briefcase className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
             <select
-              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 cursor-pointer dark:[color-scheme:dark]"
               value={selectedCostCenter}
               onChange={(e) => setSelectedCostCenter(e.target.value)}
             >
@@ -413,17 +414,49 @@ export default function CashFlowView() {
           </div>
         </div>
 
-        <div className="space-y-1"><label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Período</label><select value={periodRange} onChange={event => setPeriodRange(event.target.value as typeof periodRange)} className="w-full px-2 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg"><option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option><option value="MONTH">Mês atual</option><option value="QUARTER">Trimestre</option><option value="CUSTOM">Personalizado</option></select>{periodRange === "CUSTOM" && <div className="flex gap-1"><input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-1/2 border rounded px-1 text-[9px]" /><input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-1/2 border rounded px-1 text-[9px]" /></div>}</div>
+        <div className="space-y-1">
+          <label className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">
+            Período
+          </label>
+          <select
+            value={periodRange}
+            onChange={(event) => setPeriodRange(event.target.value as typeof periodRange)}
+            className="w-full px-2 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm dark:[color-scheme:dark]"
+          >
+            <option value="7">7 dias</option>
+            <option value="15">15 dias</option>
+            <option value="30">30 dias</option>
+            <option value="MONTH">Mês atual</option>
+            <option value="QUARTER">Trimestre</option>
+            <option value="CUSTOM">Personalizado</option>
+          </select>
+          {periodRange === "CUSTOM" && (
+            <div className="flex gap-1">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="w-1/2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 rounded-sm px-1 text-[9px] dark:[color-scheme:dark]"
+              />
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="w-1/2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 rounded-sm px-1 text-[9px] dark:[color-scheme:dark]"
+              />
+            </div>
+          )}
+        </div>
 
         {/* Temporal Grouping (available when viewing table) */}
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+          <label className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">
             Agrupamento
           </label>
           <div className="relative">
-            <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400" />
+            <Calendar className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500" />
             <select
-              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+              className="w-full pl-8 pr-2 py-1.5 text-xs bg-zinc-50 dark:bg-zinc-800/70 text-zinc-900 dark:text-zinc-100 border border-zinc-200 dark:border-zinc-700 rounded-sm focus:outline-none focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-100 cursor-pointer dark:[color-scheme:dark]"
               value={periodType}
               onChange={(e) => setPeriodType(e.target.value as any)}
             >
@@ -435,38 +468,42 @@ export default function CashFlowView() {
       </div>
 
       {/* Aggregate Overview for the chosen filters */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        <Metric label="Saldo atual" value={initialCash} tone="zinc" />
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+        <Metric label="Saldo atual" value={initialCash} tone="zinc" icon={Wallet} />
         <Metric
           label="Entradas previstas"
           value={incomingProjected}
           tone="emerald"
+          icon={ArrowUpRight}
         />
         <Metric
           label="Saídas previstas"
           value={outgoingProjected}
           tone="rose"
+          icon={ArrowDownRight}
         />
-        <Metric label="Saldo projetado" value={projectedBalance} tone="blue" />
+        <Metric label="Saldo projetado" value={projectedBalance} tone="blue" icon={TrendingUp} />
         <Metric
           label="Entradas realizadas"
           value={incomingRealized}
           tone="emerald"
+          icon={ArrowUpRight}
         />
         <Metric
           label="Saídas realizadas"
           value={outgoingRealized}
           tone="rose"
+          icon={ArrowDownRight}
         />
       </div>
 
       <div className="hidden">
-        <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-emerald-50/50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/25 p-4 rounded-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold uppercase tracking-wider">
               Entradas do Período
             </span>
-            <span className="text-lg font-bold text-emerald-800 block">
+            <span className="text-lg font-semibold text-emerald-800 dark:text-emerald-300 block">
               R${" "}
               {cashFlowTimeline
                 .reduce(
@@ -478,19 +515,19 @@ export default function CashFlowView() {
                 )
                 .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </span>
-            <span className="text-[9px] text-emerald-600 font-medium block">
+            <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium block">
               Total faturado + previsões
             </span>
           </div>
-          <ArrowUpRight className="h-6 w-6 text-emerald-600 shrink-0" />
+          <ArrowUpRight className="h-6 w-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
         </div>
 
-        <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-rose-50/50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/25 p-4 rounded-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[10px] text-rose-700 font-bold uppercase tracking-wider">
+            <span className="text-[10px] text-rose-700 dark:text-rose-300 font-semibold uppercase tracking-wider">
               Saídas do Período
             </span>
-            <span className="text-lg font-bold text-rose-800 block">
+            <span className="text-lg font-semibold text-rose-800 dark:text-rose-300 block">
               R${" "}
               {cashFlowTimeline
                 .reduce(
@@ -500,19 +537,19 @@ export default function CashFlowView() {
                 )
                 .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </span>
-            <span className="text-[9px] text-rose-600 font-medium block">
+            <span className="text-[9px] text-rose-600 dark:text-rose-400 font-medium block">
               Total liquidado + agendamentos
             </span>
           </div>
-          <ArrowDownRight className="h-6 w-6 text-rose-600 shrink-0" />
+          <ArrowDownRight className="h-6 w-6 text-rose-600 dark:text-rose-400 shrink-0" />
         </div>
 
-        <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 p-4 rounded-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-wider">
+            <span className="text-[10px] text-zinc-600 dark:text-zinc-400 font-semibold uppercase tracking-wider">
               Saldo Final Previsto
             </span>
-            <span className="text-lg font-bold text-zinc-900 block">
+            <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 block">
               R${" "}
               {(
                 cashFlowTimeline[cashFlowTimeline.length - 1]?.[
@@ -520,28 +557,28 @@ export default function CashFlowView() {
                 ] || initialCash
               ).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </span>
-            <span className="text-[9px] text-zinc-500 font-medium block">
+            <span className="text-[9px] text-zinc-500 dark:text-zinc-400 font-medium block">
               Projeção estimada de fechamento
             </span>
           </div>
-          <TrendingUp className="h-6 w-6 text-zinc-600 shrink-0" />
+          <TrendingUp className="h-6 w-6 text-zinc-600 dark:text-zinc-400 shrink-0" />
         </div>
       </div>
 
       {/* Main Mode Output */}
       {viewMode === "chart" ? (
-        <div className="bg-white p-5 rounded-xl border border-zinc-200 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-[#091320] p-5 rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">
               Simulação do Fluxo de Caixa no Período
             </h3>
-            <span className="text-[10px] bg-zinc-100 text-zinc-500 font-medium px-2 py-0.5 rounded">
+            <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-medium px-2 py-0.5 rounded">
               Filtros Aplicados
             </span>
           </div>
 
           {cashFlowTimeline.length === 0 ? (
-            <div className="py-12 text-center text-zinc-400 text-xs italic border border-zinc-100 border-dashed rounded-lg">
+            <div className="py-12 text-center text-zinc-400 dark:text-zinc-500 text-xs italic border border-zinc-100 dark:border-zinc-800 border-dashed rounded-sm">
               Sem movimentações financeiras correspondentes para o filtro atual.
             </div>
           ) : (
@@ -602,32 +639,32 @@ export default function CashFlowView() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-200">
-                  <th className="p-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                <tr className="bg-zinc-50 dark:bg-[#091320]/60 border-b border-zinc-200 dark:border-zinc-800">
+                  <th className="p-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                     Período / Data
                   </th>
-                  <th className="p-4 text-xs font-bold text-emerald-700 uppercase tracking-wider text-right">
+                  <th className="p-4 text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider text-right">
                     Entradas Realizadas
                   </th>
-                  <th className="p-4 text-xs font-bold text-emerald-500 uppercase tracking-wider text-right">
+                  <th className="p-4 text-xs font-semibold text-emerald-500 dark:text-emerald-300 uppercase tracking-wider text-right">
                     Entradas Previstas
                   </th>
-                  <th className="p-4 text-xs font-bold text-rose-700 uppercase tracking-wider text-right">
+                  <th className="p-4 text-xs font-semibold text-rose-700 dark:text-rose-400 uppercase tracking-wider text-right">
                     Saídas Realizadas
                   </th>
-                  <th className="p-4 text-xs font-bold text-rose-400 uppercase tracking-wider text-right">
+                  <th className="p-4 text-xs font-semibold text-rose-400 dark:text-rose-300 uppercase tracking-wider text-right">
                     Saídas Previstas
                   </th>
-                  <th className="p-4 text-xs font-bold text-zinc-800 uppercase tracking-wider text-right">
+                  <th className="p-4 text-xs font-semibold text-zinc-800 dark:text-zinc-100 uppercase tracking-wider text-right">
                     Resultado Período
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 text-xs">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
                 {tableRows.map((row, idx) => {
                   const totalIn = row.inRealized + row.inProjected;
                   const totalOut = row.outRealized + row.outProjected;
@@ -636,9 +673,9 @@ export default function CashFlowView() {
                   return (
                     <tr
                       key={row.period || idx}
-                      className="hover:bg-zinc-50/80 transition-colors font-mono"
+                      className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/40 transition-colors font-mono"
                     >
-                      <td className="p-4 font-sans font-semibold text-zinc-900">
+                      <td className="p-4 font-sans font-semibold text-zinc-900 dark:text-zinc-50">
                         {periodType === "monthly"
                           ? new Date(row.period + "-02").toLocaleDateString(
                               "pt-BR",
@@ -650,32 +687,32 @@ export default function CashFlowView() {
                               year: "numeric",
                             })}
                       </td>
-                      <td className="p-4 text-emerald-700 text-right font-medium">
+                      <td className="p-4 text-emerald-700 dark:text-emerald-400 text-right font-medium">
                         R${" "}
                         {row.inRealized.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="p-4 text-emerald-500 text-right">
+                      <td className="p-4 text-emerald-500 dark:text-emerald-300 text-right">
                         R${" "}
                         {row.inProjected.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="p-4 text-rose-700 text-right font-medium">
+                      <td className="p-4 text-rose-700 dark:text-rose-400 text-right font-medium">
                         R${" "}
                         {row.outRealized.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
-                      <td className="p-4 text-rose-400 text-right">
+                      <td className="p-4 text-rose-400 dark:text-rose-300 text-right">
                         R${" "}
                         {row.outProjected.toLocaleString("pt-BR", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
                       <td
-                        className={`p-4 text-right font-bold ${diff >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+                        className={`p-4 text-right font-semibold ${diff >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}
                       >
                         R${" "}
                         {diff.toLocaleString("pt-BR", {
@@ -689,7 +726,7 @@ export default function CashFlowView() {
                   <tr>
                     <td
                       colSpan={6}
-                      className="p-8 text-center text-zinc-400 italic"
+                      className="p-8 text-center text-zinc-400 dark:text-zinc-500 italic"
                     >
                       Nenhum fluxo registrado para os filtros especificados.
                     </td>
@@ -708,23 +745,41 @@ function Metric({
   label,
   value,
   tone,
+  icon: Icon,
 }: {
   label: string;
   value: number;
   tone: "zinc" | "emerald" | "rose" | "blue";
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 }) {
   const colors = {
-    zinc: "text-zinc-800",
-    emerald: "text-emerald-700",
-    rose: "text-rose-700",
-    blue: "text-blue-700",
+    zinc: "text-zinc-800 dark:text-zinc-200",
+    emerald: "text-emerald-700 dark:text-emerald-400",
+    rose: "text-rose-700 dark:text-rose-400",
+    blue: "text-blue-700 dark:text-blue-400",
+  };
+  const chipTones = {
+    zinc: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+    emerald:
+      "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300",
+    rose: "bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300",
+    blue: "bg-[#0B2C52]/5 text-[#0B2C52] dark:bg-[#123B6B]/25 dark:text-[#9DB8D9]",
   };
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 p-3">
-      <p className="text-[9px] text-zinc-500 font-bold uppercase">{label}</p>
-      <p className={`text-base font-black mt-1 ${colors[tone]}`}>
-        R$ {value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-      </p>
+    <div className="bg-white dark:bg-[#091320] rounded-sm border border-zinc-200 dark:border-zinc-800 p-2.5 flex flex-col gap-2">
+      <div
+        className={`h-7 w-7 rounded-sm flex items-center justify-center ${chipTones[tone]}`}
+      >
+        <Icon className="h-3.5 w-3.5" strokeWidth={2.25} />
+      </div>
+      <div>
+        <p className="text-[9px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase">
+          {label}
+        </p>
+        <p className={`text-base font-semibold mt-0.5 ${colors[tone]}`}>
+          R$ {value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+        </p>
+      </div>
     </div>
   );
 }
